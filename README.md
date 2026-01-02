@@ -1487,23 +1487,63 @@ docker build -t ktbot:latest . 2>&1 | tee build.log
 
 ---
 
+## 文档结构
+
+本项目采用精简的敏捷开发文档架构，核心文档职责清晰：
+
+| 文档 | 用途 | 更新频率 | 受众 |
+|------|------|---------|------|
+| **[README.md](./README.md)** | 项目概览、快速开始、使用指南 | 稳定 | 所有人 |
+| **[Requirements.md](./Requirements.md)** | Epic、用户故事、验收标准、版本规划 | 频繁 | 产品/开发团队 |
+| **[SPRINTS.md](./SPRINTS.md)** | Sprint 计划、任务分解、进度跟踪 | 每 Sprint | 开发团队 |
+| **[CHANGELOG.md](./CHANGELOG.md)** | 已发布版本的实际变更记录 | 每次发布 | 所有人 |
+
+### 文档关系流程
+
+```
+需求定义              任务分解               开发              交付记录
+    ↓                    ↓                    ↓                    ↓
+Requirements.md → SPRINTS.md → 实际开发与迭代 → CHANGELOG.md
+  (做什么)            (如何做)              (开发中)            (已完成)
+  包含 Epic           Sprint 任务
+  用户故事            技术实现
+  版本规划            进度跟踪
+```
+
+**推荐阅读顺序**:
+1. **新用户**: README.md → CHANGELOG.md → Requirements.md
+2. **开发人员**: README.md → Requirements.md → SPRINTS.md
+3. **项目管理**: Requirements.md → SPRINTS.md → CHANGELOG.md
+
+---
+
 ## 更新日志
 
-### v0.1.0 (2025-12-30)
+详细的版本变更历史请查看 [CHANGELOG.md](./CHANGELOG.md)
 
-**新功能**:
-- ✨ 初始版本发布
-- ✨ Ollama 模型集成
-- ✨ Jira 数据同步
-- ✨ Confluence 数据同步
-- ✨ 基础 RAG 检索
+### 最新版本: v0.1.0 (2025-12-30)
+
+**新增功能**:
+- ✨ Ollama 本地模型集成
+- ✨ Jira/Confluence 企业工具集成
+- ✨ 基础 RAG 检索引擎（ChromaDB）
+- ✨ Gradio Web UI 对话界面
+- ✨ Docker 一键部署
 
 **已知问题**:
-- ⚠️ UI 界面功能有限
-- ⚠️ 重排序功能待优化
-- ⚠️ 部分边界情况未处理
+- ⚠️ UI 界面功能有限（v0.2.0 将增强）
+- ⚠️ 仅支持向量检索（v0.2.0 将支持混合检索）
+- ⚠️ 无重排序功能（v0.2.0 将添加）
 
-详细更新日志请查看 [CHANGELOG.md](./CHANGELOG.md)
+### 未来版本规划
+
+完整的需求和版本规划请查看：[Requirements.md](./Requirements.md)
+
+- **v0.2.0** (Q1 2026): 混合检索、重排序、引用溯源、Web UI 增强
+- **v0.3.0** (Q2 2026): MCP 协议、多用户认证、权限管理
+- **v1.0.0** (Q3 2026): GraphRAG、多模态、企业级功能
+
+当前开发进度请查看：[SPRINTS.md](./SPRINTS.md)
 
 ---
 
