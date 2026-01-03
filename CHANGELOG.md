@@ -12,10 +12,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [未发布]
 
-> 对应 **Sprint 2-3** 的计划任务，详见 [SPRINTS.md](./SPRINTS.md)
-> **说明**: Requirements.md 中的 "Sprint 1-3" 是长期规划（3周），对应实际执行中的 Sprint 1（已完成）+ Sprint 3（计划中）
+> 对应 **Sprint 1** 进行中的任务，详见 [SPRINTS.md](./SPRINTS.md)
 
 ### Added / 新增
+
+#### 2026-01-03 - Sprint 1 Task 1.1: LLM Module Implementation ✅
+
+**Epic 1: 本地模型集成与管理**
+- ✅ **LLM 基础架构** (Story 1.1)
+  - 实现 `BaseLLM` 和 `BaseEmbedding` 抽象基类
+  - 支持异步 generate、chat、embed 等核心接口
+  - 完整的流式和非流式生成支持
+
+- ✅ **Ollama 集成** (Story 1.1, 1.2)
+  - `OllamaLLM`: 完整的 Ollama LLM 客户端实现
+  - `OllamaEmbedding`: Embedding 模型支持
+  - 支持 qwen2.5:7b、llama3.1:8b 等多个模型
+  - 异步 HTTP 客户端（httpx），支持超时和错误处理
+
+- ✅ **模型管理器** (Story 1.2)
+  - `LLMManager`: 统一的模型生命周期管理
+  - 模型实例缓存机制，提升性能
+  - 支持多模型并存和动态切换
+  - 全局单例模式 `get_llm_manager()`
+
+- ✅ **健康检查系统** (Story 1.9)
+  - `LLMHealthChecker`: 全面的健康监控
+  - Ollama 服务状态检查
+  - 模型可用性验证
+  - 详细的健康状态报告（healthy/degraded/unhealthy）
+
+- ✅ **测试与示例**
+  - 33 个单元测试（Manager: 18, Ollama: 15）
+  - 交互式示例脚本 `examples/test_llm.py`
+  - 完整的测试覆盖（生成、聊天、流式、健康检查）
+
+- ✅ **文档**
+  - 详细的 API 文档和使用示例
+  - Sprint 1 Task 1.1 完成总结
+  - Docker 部署指南（macOS 12 workaround）
+
+**技术栈**
+- httpx 0.28.1 - 异步 HTTP 客户端
+- pydantic 2.12.5 - 数据验证和配置管理
+- Python 3.10+ with async/await
+
+**代码统计**
+- 生产代码: ~1,216 行
+- 测试代码: ~443 行
+- 总计: ~1,879 行（10 个文件）
+
+### Planned / 计划中
 
 #### v0.1.1 - ✅ Sprint 1-3 阶段完成（计划于 Sprint 3: 2026-01-20 ~ 2026-02-02）
 

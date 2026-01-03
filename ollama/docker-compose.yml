@@ -1,0 +1,57 @@
+# KT-BOT Docker Compose 配置
+# 用于 macOS 12 运行 Ollama（需要 macOS 14+ 才能原生安装）
+
+services:
+  # Ollama 服务 - Epic 1: 本地模型集成
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ktbot-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - ktbot-network
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:14
+    container_name: ktbot-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ktbot
+      - POSTGRES_USER=ktbot
+      - POSTGRES_PASSWORD=ktbot_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - ktbot-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ktbot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - ktbot-network
+
+volumes:
+  ollama_data:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ktbot-network:
+    driver: bridge
