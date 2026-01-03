@@ -707,156 +707,343 @@ retrieval:
 
 ## 项目结构
 
+本项目结构按照 Requirements.md 中定义的 9 个 Epic 组织，确保代码模块化和可维护性。
+
 ```
 KT-BOT/
 ├── .github/
 │   └── workflows/              # GitHub Actions CI/CD
-│       ├── test.yml
-│       └── deploy.yml
+│       ├── test.yml            # 自动化测试
+│       ├── lint.yml            # 代码检查
+│       └── deploy.yml          # 自动化部署
 │
-├── config/                     # 配置文件
-│   ├── logging.yaml           # 日志配置
-│   ├── retrieval.yaml         # 检索参数配置
-│   └── models.yaml            # 模型配置
+├── config/                     # 配置文件目录
+│   ├── logging.yaml            # 日志配置
+│   ├── retrieval.yaml          # 检索参数配置（Epic 3, 9）
+│   ├── models.yaml             # 模型配置（Epic 1）
+│   ├── sync.yaml               # 数据同步配置（Epic 2）
+│   └── auth.yaml               # 认证配置（Epic 6）
 │
 ├── data/                       # 数据目录（.gitignore）
-│   ├── vectordb/              # 向量数据库
-│   ├── documents/             # 文档存储
-│   └── cache/                 # 缓存文件
+│   ├── vectordb/               # 向量数据库文件
+│   ├── documents/              # 原始文档存储
+│   ├── uploads/                # 用户上传文件
+│   ├── cache/                  # 缓存文件
+│   └── logs/                   # 应用日志
 │
 ├── docs/                       # 项目文档
-│   ├── Kotaemon.md            # Kotaemon 详解
-│   ├── AGILE_REQUIREMENTS.md  # 敏捷需求文档
-│   ├── API.md                 # API 文档
-│   ├── DEVELOPMENT.md         # 开发指南
-│   └── DEPLOYMENT.md          # 部署指南
+│   ├── Kotaemon.md             # Kotaemon 参考文档
+│   ├── Requirements.md         # 需求文档（Epic 定义）
+│   ├── SPRINTS.md              # Sprint 规划
+│   ├── CHANGELOG.md            # 版本变更日志
+│   ├── API.md                  # API 接口文档
+│   ├── DEVELOPMENT.md          # 开发者指南
+│   └── DEPLOYMENT.md           # 部署文档
 │
 ├── scripts/                    # 工具脚本
-│   ├── init_db.py             # 数据库初始化
-│   ├── sync_jira.py           # 手动同步 Jira
-│   ├── sync_confluence.py     # 手动同步 Confluence
-│   └── benchmark.py           # 性能测试
+│   ├── init_db.py              # 数据库初始化
+│   ├── sync_jira.py            # 手动同步 Jira（Epic 2）
+│   ├── sync_confluence.py      # 手动同步 Confluence（Epic 2）
+│   ├── index_documents.py      # 批量索引文档（Epic 3）
+│   ├── benchmark.py            # 性能测试（Epic 8）
+│   └── backup.py               # 数据备份
 │
-├── src/                        # 源代码
-│   ├── api/                   # API 层
+├── src/                        # 源代码根目录
+│   ├── api/                    # REST API 层
 │   │   ├── __init__.py
-│   │   ├── auth.py           # 认证接口
-│   │   ├── chat.py           # 对话接口
-│   │   ├── documents.py      # 文档管理接口
-│   │   └── config.py         # 配置接口
-│   │
-│   ├── core/                  # 核心业务逻辑
-│   │   ├── __init__.py
-│   │   ├── rag/              # RAG 引擎
+│   │   ├── routes/             # API 路由
 │   │   │   ├── __init__.py
-│   │   │   ├── retriever.py  # 检索器
-│   │   │   ├── reranker.py   # 重排序器
-│   │   │   ├── generator.py  # 生成器
-│   │   │   └── pipeline.py   # RAG 管道
+│   │   │   ├── auth.py         # 认证接口（Epic 6）
+│   │   │   ├── chat.py         # 对话接口（Epic 4）
+│   │   │   ├── documents.py    # 文档管理接口（Epic 4）
+│   │   │   ├── models.py       # 模型管理接口（Epic 1）
+│   │   │   ├── sync.py         # 同步管理接口（Epic 2）
+│   │   │   └── admin.py        # 管理员接口（Epic 6）
 │   │   │
-│   │   ├── embedding/        # 向量化
+│   │   ├── middleware/         # 中间件
 │   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   └── ollama.py
+│   │   │   ├── auth.py         # 认证中间件
+│   │   │   ├── rate_limit.py   # 限流中间件
+│   │   │   └── logging.py      # 日志中间件
 │   │   │
-│   │   └── llm/              # 大语言模型
+│   │   └── schemas/            # API Schema（Pydantic）
 │   │       ├── __init__.py
-│   │       ├── base.py
-│   │       └── ollama.py
+│   │       ├── chat.py
+│   │       ├── document.py
+│   │       └── user.py
 │   │
-│   ├── integrations/          # 第三方集成
+│   ├── auth/                   # 【Epic 6】认证与权限管理
 │   │   ├── __init__.py
-│   │   ├── jira/
-│   │   │   ├── __init__.py
-│   │   │   ├── client.py     # Jira 客户端
-│   │   │   ├── sync.py       # 数据同步
-│   │   │   └── parser.py     # 数据解析
+│   │   ├── authentication.py   # 用户认证（JWT/OAuth）
+│   │   ├── authorization.py    # 权限控制（RBAC）
+│   │   ├── session.py          # 会话管理
+│   │   ├── quota.py            # 使用配额管理
+│   │   └── models.py           # 用户/角色模型
+│   │
+│   ├── core/                   # 核心业务逻辑
+│   │   ├── __init__.py
 │   │   │
-│   │   └── confluence/
+│   │   ├── llm/                # 【Epic 1】大语言模型管理
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py         # 模型基类
+│   │   │   ├── ollama.py       # Ollama 模型集成
+│   │   │   ├── manager.py      # 多模型管理
+│   │   │   ├── health.py       # 模型健康检查
+│   │   │   └── recommender.py  # 智能模型推荐
+│   │   │
+│   │   ├── embedding/          # 【Epic 1】Embedding 模型
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py         # Embedding 基类
+│   │   │   ├── ollama.py       # Ollama Embedding
+│   │   │   └── manager.py      # Embedding 模型管理
+│   │   │
+│   │   ├── rag/                # 【Epic 3】RAG 检索引擎
+│   │   │   ├── __init__.py
+│   │   │   ├── indexer.py      # 文档索引器
+│   │   │   ├── chunker.py      # 文档分块器（Epic 9）
+│   │   │   ├── retriever/      # 检索器模块
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── base.py     # 检索器基类
+│   │   │   │   ├── vector.py   # 向量检索
+│   │   │   │   ├── bm25.py     # BM25 全文检索
+│   │   │   │   └── hybrid.py   # 混合检索（RRF）
+│   │   │   │
+│   │   │   ├── reranker.py     # Cross-Encoder 重排序
+│   │   │   ├── query_processor.py  # 查询处理与扩展
+│   │   │   ├── citation.py     # 引用溯源系统
+│   │   │   ├── filter.py       # 检索结果过滤
+│   │   │   ├── pipeline.py     # RAG 完整管道
+│   │   │   └── visualizer.py   # 检索可视化（Epic 3）
+│   │   │
+│   │   └── generator/          # 【Epic 3】响应生成
 │   │       ├── __init__.py
-│   │       ├── client.py
-│   │       ├── sync.py
-│   │       └── parser.py
+│   │       ├── base.py         # 生成器基类
+│   │       ├── stream.py       # 流式生成
+│   │       └── prompt.py       # Prompt 模板管理
 │   │
-│   ├── mcp/                   # MCP 服务器
+│   ├── document_processing/    # 【Epic 7】文档处理与 OCR
 │   │   ├── __init__.py
-│   │   ├── server.py         # MCP 服务器主程序
-│   │   ├── tools/            # MCP Tools
+│   │   ├── parser/             # 文档解析器
 │   │   │   ├── __init__.py
-│   │   │   ├── jira_tool.py
-│   │   │   ├── confluence_tool.py
-│   │   │   └── custom_tool.py
-│   │   └── config.json       # MCP 配置
-│   │
-│   ├── models/                # 数据模型
-│   │   ├── __init__.py
-│   │   ├── document.py       # 文档模型
-│   │   ├── conversation.py   # 对话模型
-│   │   ├── user.py           # 用户模型
-│   │   └── citation.py       # 引用模型
-│   │
-│   ├── storage/               # 存储层
-│   │   ├── __init__.py
-│   │   ├── vector/           # 向量数据库
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   ├── chromadb.py
-│   │   │   ├── qdrant.py
-│   │   │   └── milvus.py
+│   │   │   ├── pdf.py          # PDF 解析
+│   │   │   ├── docx.py         # Word 解析
+│   │   │   ├── markdown.py     # Markdown 解析
+│   │   │   └── html.py         # HTML 解析
 │   │   │
-│   │   ├── database/         # 关系数据库
+│   │   ├── ocr/                # OCR 引擎
 │   │   │   ├── __init__.py
-│   │   │   ├── models.py     # SQLAlchemy 模型
-│   │   │   └── session.py
+│   │   │   ├── tesseract.py    # Tesseract OCR
+│   │   │   └── paddleocr.py    # PaddleOCR
 │   │   │
-│   │   └── cache/            # 缓存
+│   │   ├── table_extractor.py  # 表格提取
+│   │   ├── image_processor.py  # 图片处理
+│   │   └── cleaner.py          # 文本清洗
+│   │
+│   ├── integrations/           # 【Epic 2】企业工具集成
+│   │   ├── __init__.py
+│   │   │
+│   │   ├── jira/               # Jira 集成
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py       # Jira API 客户端
+│   │   │   ├── sync.py         # 数据同步逻辑
+│   │   │   ├── parser.py       # Issue/Comment 解析
+│   │   │   └── webhook.py      # Webhook 处理
+│   │   │
+│   │   ├── confluence/         # Confluence 集成
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py       # Confluence API 客户端
+│   │   │   ├── sync.py         # 页面同步逻辑
+│   │   │   ├── parser.py       # 页面内容解析
+│   │   │   └── webhook.py      # Webhook 处理
+│   │   │
+│   │   └── scheduler.py        # 同步调度器
+│   │
+│   ├── mcp/                    # 【Epic 5】MCP 协议支持
+│   │   ├── __init__.py
+│   │   ├── server.py           # MCP Server 主程序
+│   │   ├── protocol.py         # MCP 协议实现
+│   │   │
+│   │   ├── tools/              # MCP Tools
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py         # Tool 基类
+│   │   │   ├── jira_tool.py    # Jira MCP Tool
+│   │   │   ├── confluence_tool.py  # Confluence MCP Tool
+│   │   │   └── custom_tool.py  # 自定义 Tool 示例
+│   │   │
+│   │   ├── registry.py         # Tool 注册中心
+│   │   └── config.json         # MCP 配置文件
+│   │
+│   ├── models/                 # 数据模型（ORM）
+│   │   ├── __init__.py
+│   │   ├── base.py             # 模型基类
+│   │   ├── document.py         # 文档模型
+│   │   ├── conversation.py     # 对话模型
+│   │   ├── message.py          # 消息模型
+│   │   ├── user.py             # 用户模型
+│   │   ├── role.py             # 角色模型
+│   │   ├── citation.py         # 引用模型
+│   │   └── sync_log.py         # 同步日志模型
+│   │
+│   ├── monitoring/             # 【Epic 8】性能监控与告警
+│   │   ├── __init__.py
+│   │   ├── metrics.py          # Prometheus 指标
+│   │   ├── tracer.py           # OpenTelemetry 追踪
+│   │   ├── profiler.py         # 性能分析
+│   │   ├── alerting.py         # 告警系统
+│   │   └── dashboard.py        # 监控仪表盘
+│   │
+│   ├── storage/                # 存储层
+│   │   ├── __init__.py
+│   │   │
+│   │   ├── vector/             # 向量数据库
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py         # 向量存储基类
+│   │   │   ├── chromadb.py     # ChromaDB 实现
+│   │   │   ├── qdrant.py       # Qdrant 实现
+│   │   │   └── milvus.py       # Milvus 实现
+│   │   │
+│   │   ├── database/           # 关系数据库
+│   │   │   ├── __init__.py
+│   │   │   ├── engine.py       # 数据库引擎
+│   │   │   ├── session.py      # 会话管理
+│   │   │   ├── migrations/     # Alembic 迁移
+│   │   │   │   └── versions/
+│   │   │   └── repository/     # 数据访问层
+│   │   │       ├── __init__.py
+│   │   │       ├── document_repo.py
+│   │   │       ├── user_repo.py
+│   │   │       └── conversation_repo.py
+│   │   │
+│   │   ├── cache/              # 缓存层
+│   │   │   ├── __init__.py
+│   │   │   ├── redis.py        # Redis 缓存
+│   │   │   └── memory.py       # 内存缓存
+│   │   │
+│   │   └── file_storage/       # 文件存储
 │   │       ├── __init__.py
-│   │       └── redis.py
+│   │       ├── local.py        # 本地文件系统
+│   │       └── s3.py           # S3 兼容存储
 │   │
-│   ├── ui/                    # 用户界面
+│   ├── ui/                     # 【Epic 4】Web UI 界面
 │   │   ├── __init__.py
-│   │   ├── app.py            # Gradio 应用
-│   │   ├── components/       # UI 组件
-│   │   │   ├── chat.py
-│   │   │   ├── documents.py
-│   │   │   └── settings.py
-│   │   └── assets/           # 静态资源
+│   │   ├── app.py              # Gradio 应用入口
+│   │   │
+│   │   ├── components/         # UI 组件
+│   │   │   ├── __init__.py
+│   │   │   ├── chat.py         # 对话组件
+│   │   │   ├── documents.py    # 文档管理组件
+│   │   │   ├── settings.py     # 设置面板
+│   │   │   ├── search.py       # 搜索组件
+│   │   │   ├── model_selector.py   # 模型切换
+│   │   │   ├── sync_status.py  # 同步状态显示
+│   │   │   ├── citations.py    # 引用展示
+│   │   │   ├── dashboard.py    # 统计仪表盘
+│   │   │   └── help.py         # 帮助系统
+│   │   │
+│   │   ├── pages/              # 多标签页
+│   │   │   ├── __init__.py
+│   │   │   ├── chat_page.py
+│   │   │   ├── document_page.py
+│   │   │   └── admin_page.py
+│   │   │
+│   │   ├── theme.py            # UI 主题配置
+│   │   └── assets/             # 静态资源
+│   │       ├── css/
+│   │       ├── js/
+│   │       └── images/
 │   │
-│   ├── utils/                 # 工具函数
+│   ├── utils/                  # 工具函数
 │   │   ├── __init__.py
-│   │   ├── logger.py         # 日志工具
-│   │   ├── text.py           # 文本处理
-│   │   ├── time.py           # 时间工具
-│   │   └── validator.py      # 数据验证
+│   │   ├── logger.py           # 日志工具
+│   │   ├── text.py             # 文本处理工具
+│   │   ├── time.py             # 时间工具
+│   │   ├── validator.py        # 数据验证
+│   │   ├── security.py         # 安全工具
+│   │   └── async_utils.py      # 异步工具
 │   │
 │   ├── __init__.py
-│   ├── main.py               # 主程序入口
-│   └── config.py             # 配置管理
+│   ├── main.py                 # 主程序入口
+│   ├── config.py               # 配置管理
+│   └── constants.py            # 常量定义
 │
-├── tests/                     # 测试代码
+├── tests/                      # 测试代码
 │   ├── __init__.py
-│   ├── conftest.py           # pytest 配置
-│   ├── unit/                 # 单元测试
-│   │   ├── test_retriever.py
-│   │   ├── test_reranker.py
-│   │   └── test_generator.py
-│   ├── integration/          # 集成测试
-│   │   ├── test_jira.py
-│   │   ├── test_confluence.py
-│   │   └── test_rag_pipeline.py
-│   └── e2e/                  # 端到端测试
-│       └── test_chat.py
+│   ├── conftest.py             # pytest 配置和 fixtures
+│   │
+│   ├── unit/                   # 单元测试（Epic 对应）
+│   │   ├── __init__.py
+│   │   ├── test_llm/           # Epic 1 测试
+│   │   │   ├── test_ollama.py
+│   │   │   └── test_manager.py
+│   │   ├── test_rag/           # Epic 3 测试
+│   │   │   ├── test_retriever.py
+│   │   │   ├── test_reranker.py
+│   │   │   ├── test_chunker.py
+│   │   │   └── test_citation.py
+│   │   ├── test_auth/          # Epic 6 测试
+│   │   │   ├── test_authentication.py
+│   │   │   └── test_authorization.py
+│   │   └── test_document_processing/  # Epic 7 测试
+│   │       ├── test_parser.py
+│   │       └── test_ocr.py
+│   │
+│   ├── integration/            # 集成测试
+│   │   ├── __init__.py
+│   │   ├── test_jira_integration.py     # Epic 2
+│   │   ├── test_confluence_integration.py  # Epic 2
+│   │   ├── test_rag_pipeline.py         # Epic 3
+│   │   ├── test_mcp_server.py           # Epic 5
+│   │   └── test_storage.py
+│   │
+│   ├── e2e/                    # 端到端测试
+│   │   ├── __init__.py
+│   │   ├── test_chat_flow.py
+│   │   ├── test_document_upload.py
+│   │   └── test_user_workflow.py
+│   │
+│   ├── performance/            # 性能测试（Epic 8）
+│   │   ├── __init__.py
+│   │   ├── test_retrieval_performance.py
+│   │   └── test_llm_performance.py
+│   │
+│   └── fixtures/               # 测试数据
+│       ├── sample_documents/
+│       ├── mock_responses/
+│       └── test_configs/
 │
-├── .env.example               # 环境变量模板
-├── .gitignore
-├── docker-compose.yml         # Docker Compose 配置
-├── Dockerfile                 # Docker 镜像
-├── LICENSE                    # MIT 许可证
-├── README.md                  # 本文档
-├── requirements.txt           # Python 依赖
-├── requirements-dev.txt       # 开发依赖
-└── setup.py                   # 安装脚本
+├── .env.example                # 环境变量模板
+├── .gitignore                  # Git 忽略文件
+├── .pre-commit-config.yaml     # Pre-commit 钩子配置
+├── docker-compose.yml          # Docker Compose 配置
+├── Dockerfile                  # Docker 镜像定义
+├── LICENSE                     # MIT 许可证
+├── README.md                   # 项目说明（本文档）
+├── requirements.txt            # Python 生产依赖
+├── requirements-dev.txt        # Python 开发依赖
+├── pyproject.toml              # Python 项目配置
+└── setup.py                    # 安装脚本
 ```
+
+### 目录结构与 Epic 对应关系
+
+| 目录 | 对应 Epic | 说明 |
+|------|----------|------|
+| `src/core/llm/` | Epic 1 | 本地模型集成与管理 |
+| `src/core/embedding/` | Epic 1 | Embedding 模型管理 |
+| `src/integrations/` | Epic 2 | 企业知识源集成（Jira/Confluence） |
+| `src/core/rag/` | Epic 3, Epic 9 | RAG 检索引擎与检索优化 |
+| `src/ui/` | Epic 4 | Web UI 界面 |
+| `src/mcp/` | Epic 5 | MCP 协议支持 |
+| `src/auth/` | Epic 6 | 多用户与权限管理 |
+| `src/document_processing/` | Epic 7 | 文档处理与 OCR |
+| `src/monitoring/` | Epic 8 | 性能优化与监控 |
+
+### 设计原则
+
+1. **模块化**: 每个 Epic 对应独立的模块，便于并行开发和维护
+2. **可扩展**: 使用基类和接口，支持多种实现（如多种向量数据库）
+3. **分层架构**: API → Core → Storage，职责清晰
+4. **测试覆盖**: 单元测试、集成测试、E2E 测试完整覆盖
 
 ---
 

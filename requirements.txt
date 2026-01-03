@@ -1,0 +1,60 @@
+# Core Dependencies
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# Web UI
+gradio>=4.16.0
+
+# Ollama Integration
+ollama>=0.1.6
+
+# Vector Databases
+chromadb>=0.4.22
+# qdrant-client>=1.7.0  # Optional
+# pymilvus>=2.3.0  # Optional
+
+# Document Processing
+langchain>=0.1.0
+langchain-community>=0.0.13
+pypdf>=4.0.0
+python-docx>=1.1.0
+python-markdown>=3.5.0
+beautifulsoup4>=4.12.0
+
+# Text Processing
+jieba>=0.42.1  # Chinese word segmentation
+rank-bm25>=0.2.2  # BM25 retrieval
+sentence-transformers>=2.3.0  # Embeddings and reranking
+
+# Jira & Confluence Integration
+jira>=3.6.0
+atlassian-python-api>=3.41.0
+
+# Database
+sqlalchemy>=2.0.25
+alembic>=1.13.1
+psycopg2-binary>=2.9.9  # PostgreSQL
+redis>=5.0.1
+
+# Async
+httpx>=0.26.0
+aiofiles>=23.2.1
+
+# Monitoring & Logging
+prometheus-client>=0.19.0
+opentelemetry-api>=1.22.0
+opentelemetry-sdk>=1.22.0
+python-json-logger>=2.0.7
+
+# Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+
+# Utilities
+pyyaml>=6.0.1
+tenacity>=8.2.3
+click>=8.1.7
