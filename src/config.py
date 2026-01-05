@@ -45,6 +45,32 @@ class Settings(BaseSettings):
         description="Ollama 请求超时时间（秒）"
     )
 
+    # ========== Epic 2: Jira Configuration ==========
+    jira_url: str = Field(
+        default="",
+        description="Jira 实例 URL (如: https://company.atlassian.net)"
+    )
+    jira_email: str = Field(
+        default="",
+        description="Jira 账号邮箱"
+    )
+    jira_api_token: str = Field(
+        default="",
+        description="Jira API Token"
+    )
+    jira_project_key: Optional[str] = Field(
+        default=None,
+        description="默认 Jira 项目 KEY（可选，留空则拉取所有项目）"
+    )
+    jira_max_results: int = Field(
+        default=100,
+        description="单次请求最大结果数"
+    )
+    jira_timeout: int = Field(
+        default=30,
+        description="Jira API 请求超时时间（秒）"
+    )
+
     # ========== Database & Redis ==========
     database_url: str = Field(
         default="postgresql://localhost:5432/ktbot",
