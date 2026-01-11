@@ -71,6 +71,28 @@ class Settings(BaseSettings):
         description="Jira API 请求超时时间（秒）"
     )
 
+    # ========== Epic 2: Confluence Configuration ==========
+    confluence_url: str = Field(
+        default="",
+        description="Confluence 实例 URL (如: https://company.atlassian.net/wiki)"
+    )
+    confluence_email: str = Field(
+        default="",
+        description="Confluence 账号邮箱"
+    )
+    confluence_api_token: str = Field(
+        default="",
+        description="Confluence API Token"
+    )
+    confluence_space_key: Optional[str] = Field(
+        default=None,
+        description="默认 Confluence 空间 KEY（可选，留空则查询所有空间）"
+    )
+    confluence_timeout: int = Field(
+        default=30,
+        description="Confluence API 请求超时时间（秒）"
+    )
+
     # ========== Database & Redis ==========
     database_url: str = Field(
         default="postgresql://localhost:5432/ktbot",
