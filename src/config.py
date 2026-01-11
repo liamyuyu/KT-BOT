@@ -93,6 +93,24 @@ class Settings(BaseSettings):
         description="Confluence API 请求超时时间（秒）"
     )
 
+    # ========== Epic 3: ChromaDB Configuration ==========
+    chroma_persist_directory: str = Field(
+        default="./data/chroma",
+        description="ChromaDB 持久化目录"
+    )
+    chroma_collection_name: str = Field(
+        default="kt_bot_documents",
+        description="默认 Collection 名称"
+    )
+    chroma_host: Optional[str] = Field(
+        default=None,
+        description="ChromaDB 服务器地址（客户端模式，可选）"
+    )
+    chroma_port: Optional[int] = Field(
+        default=None,
+        description="ChromaDB 服务器端口（客户端模式，可选）"
+    )
+
     # ========== Database & Redis ==========
     database_url: str = Field(
         default="postgresql://localhost:5432/ktbot",
