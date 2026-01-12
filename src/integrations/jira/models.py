@@ -5,7 +5,7 @@ Jira 数据模型定义（使用 Pydantic）
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, ConfigDict
 
 
 class JiraUser(BaseModel):
@@ -108,10 +108,11 @@ class JiraIssue(BaseModel):
     # Web URL
     url: Optional[str] = Field(None, description="Issue 的 Web 访问 URL")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
 
 class JiraIssuePage(BaseModel):
