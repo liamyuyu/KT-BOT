@@ -1,15 +1,15 @@
 # 🔖 开发进度书签 | Development Bookmark
 
-> **最后更新**: 2026-01-12
+> **最后更新**: 2026-01-14 (晚)
 > **当前 Sprint**: Sprint 1 (2026-01-03 ~ 2026-01-16)
-> **剩余时间**: 4 天
-> **当前阶段**: Task 1.5 完成，准备 Task 1.7 🎯
+> **剩余时间**: 2 天
+> **当前阶段**: Task 1.7 基本完成（90% - 前后端集成完成）🎉
 
 ---
 
 ## 🎯 当前状态 | Current Status
 
-### ✅ 已完成任务 (50/55 故事点，90.9%)
+### ✅ 已完成任务 (54.5/55 故事点，99.1%)
 
 | 任务 | Story | 状态 | 完成日期 | 交付 |
 |------|-------|------|----------|------|
@@ -18,42 +18,120 @@
 | Task 1.3 | Jira API 集成 (8点) | ✅ | 2026-01-05 | ~1,400 行代码 |
 | Task 1.4 | Confluence API 集成 (8点) | ✅ | 2026-01-12 | ~2,050 行代码 |
 | Task 1.6 | ChromaDB 配置 (8点) | ✅ | 2026-01-12 | ~2,136 行代码 |
-| Task 1.5 | **基础文档索引 (13点)** | ✅ | 2026-01-12 | ~1,181 行代码 |
+| Task 1.5 | 基础文档索引 (13点) | ✅ | 2026-01-12 | ~1,181 行代码 |
+| Task 1.7 | **Web UI 对话界面 (5点)** | 🔄 | 90% 完成 | ~2,200 行代码 |
 
 **最新提交**:
 ```bash
-# Task 1.5 完成 - 基础文档索引
-- 实现文本分块器（固定长度分块）
-- 实现文档索引器（Jira → ChromaDB）
-- 实现向量检索器（相似度搜索）
-- 12 个单元测试全部通过（95%+ 覆盖率）
+# Task 1.7 - Web UI 对话界面（90% 完成）🎉
 
-# 代码质量检查 ✅
-- 语法检查：57/57 文件通过
-- 模块导入：5/5 核心模块可用
-- 修复 Pydantic v2 弃用警告
-- 编译检查完全通过
+✅ FastAPI 后端 API（Phase 1 - 全部完成）
+   - Phase 1.1: 数据模型和路由框架
+     → 8 个 Pydantic v2 数据模型
+     → 3 个 API 路由模块
+     → FastAPI 应用入口（生命周期、CORS、异常处理）
+
+   - Phase 1.2: 会话管理器
+     → SessionManager（内存缓存 + JSON 持久化）
+     → TTL 30分钟 + 容量限制 100 条消息
+
+   - Phase 1.3: 对话服务（非流式）
+     → ChatService 核心业务逻辑
+     → LLM + RAG + SessionManager 集成
+
+   - Phase 1.4: 流式响应（SSE）✨ 新增
+     → ChatService.chat_stream() 实现
+     → Server-Sent Events 完整支持
+     → 5 种事件类型（start, context, token, end, error）
+
+✅ Gradio 前端 UI（Phase 2 - 基本完成）
+   - Phase 2.1: 基础布局
+     → ChatPage 完整实现（436 行）
+     → UI 组件（Chatbot, Textbox, Button, Dropdown, Slider）
+     → 示例问题 + 配置面板
+
+   - Phase 2.2: API 客户端
+     → ChatAPIClient 完整实现（240 行）
+     → 支持非流式和流式对话
+     → SSE 事件流解析
+
+   - Phase 2.3: 事件处理
+     → 流式响应实时更新（打字机效果）
+     → 会话状态管理（gr.State）
+     → 历史清空功能
+
+✅ 端到端集成（Phase 3.1 - 完成）
+   - 主程序入口（src/main.py）
+     → threading 并发启动 FastAPI + Gradio
+     → FastAPI 后端（端口 7860）
+     → Gradio 前端（端口 7861）
+
+⏳ 待完成 (10%):
+   - Phase 2.4: UI 优化（Markdown 渲染、代码高亮）
+   - Phase 3.2-3.3: 功能验证和测试
+   - Phase 4: 单元测试和文档
+
+# 代码统计
+- 已创建文件: 24 个
+  - 后端: 16 个文件（~1,100 行）
+  - 前端: 7 个文件（~800 行）
+  - 主程序: src/main.py（~120 行）
+- 可用 API: 7/7 个端点全部实现 ✅
+- **总计**: ~2,200 行代码
+
+# 启动方式
+python src/main.py
+# → FastAPI: http://localhost:7860/docs
+# → Gradio: http://localhost:7861
 ```
 
 **Sprint 进度条**:
 ```
-█████████████████████████░░░ 90.9% (50/55 points)
+█████████████████████████████ 99.1% (54.5/55 points)
 ```
 
 ---
 
 ## 🔄 下一步任务 | Next Task
 
-### ⚡ **Task 1.7 - Web UI 对话界面** (待开始)
+### ⚡ **Task 1.7 - Web UI 对话界面** (基本完成 - 90%)
 
 **Story**: 4.1 - Web UI 基础对话界面（5 故事点）
-**状态**: ⏳ 待开始 - Task 1.5 已完成，可以开始开发
+**状态**: 🎉 基本完成 - 前后端集成完成，可运行使用
 **依赖**: Task 1.2 (多模型) ✅ | Task 1.5 (RAG 索引) ✅
-**预估**: 1-2 天
+**预估**: 还需 0.5 天（优化和测试）
 
-#### 任务目标
+#### 已完成 (90%)
 
-实现基础的 Web UI 对话界面，集成 RAG 检索功能
+✅ **FastAPI 后端 API** - 全部完成
+- Phase 1.1: 数据模型和路由框架 ✅
+- Phase 1.2: 会话管理器 ✅
+- Phase 1.3: 对话服务-非流式 ✅
+- Phase 1.4: 流式响应（SSE）✅
+
+✅ **Gradio 前端 UI** - 基本完成
+- Phase 2.1: 基础布局 ✅
+- Phase 2.2: API 客户端 ✅
+- Phase 2.3: 事件处理 ✅
+
+✅ **端到端集成** - 完成
+- Phase 3.1: main.py 并发启动 ✅
+
+#### 待完成 (10%)
+
+⏳ **Phase 2.4**: UI 优化 - 1-2小时
+   - Markdown 渲染
+   - 代码高亮
+   - 高级样式
+
+⏳ **Phase 3.2-3.3**: 功能验证和测试 - 2-3小时
+   - RAG 功能端到端测试
+   - 错误场景验证
+
+⏳ **Phase 4**: 单元测试和文档 - 2-3小时
+   - 补充单元测试
+   - API 文档完善
+   - 使用说明
 
 ---
 
@@ -63,9 +141,11 @@
 
 | 任务 | Story | 依赖 | 预估 | 优先级 |
 |------|-------|------|------|--------|
-| Task 1.7 | Web UI 对话界面 (5点) | 1.2✅, 1.5✅ | 1-2天 | P0 |
+| Task 1.7 收尾 | UI 优化 + 测试 (0.5点) | - | 0.5天 | P1 |
 
-**Sprint 1 进度**: 还剩 5 故事点，剩余 4 天
+**Sprint 1 进度**: 还剩 0.5 故事点，剩余 2 天
+
+**Sprint 1 状态**: ✅ 核心功能已完成，正在收尾优化
 
 ---
 
@@ -123,7 +203,7 @@
   response = await embedding.embed(text)
   ```
 
-### RAG 文档索引 (Task 1.5) ⭐ 新增
+### RAG 文档索引 (Task 1.5)
 
 1. **文本分块策略**:
    - 固定长度分块：800 字符，150 重叠
@@ -157,6 +237,131 @@
    - `VectorRetriever`: 向量检索器
    - 12 个单元测试，覆盖率 95%+
 
+### Web UI 对话界面 (Task 1.7) ⭐ 新增
+
+#### FastAPI 后端架构
+
+1. **数据模型设计** (`src/api/schemas/`):
+   ```python
+   # 核心模型（使用 Pydantic v2 ConfigDict）
+   - ChatMessage: 单条消息（role, content, timestamp）
+   - ChatRequest: 对话请求（message, session_id, enable_rag, rag_top_k）
+   - ChatResponse: 对话响应（session_id, message, retrieved_contexts）
+   - RetrievedContext: RAG 检索结果（chunk_id, content, score, source）
+   - ChatHistory: 会话历史（messages列表）
+   ```
+
+2. **会话管理策略** (`SessionManager`):
+   - **存储**: 内存缓存（快速访问）+ JSON 文件持久化（防丢失）
+   - **TTL**: 30分钟无活动自动过期
+   - **容量**: 最多保留 100 条消息（自动裁剪）
+   - **文件路径**: `./data/chat_history/{session_id}.json`
+
+3. **对话服务流程** (`ChatService.chat()`):
+   ```
+   1. 创建/获取会话 (UUID)
+   2. RAG 检索（如果启用）
+      → VectorRetriever.retrieve(query, top_k)
+      → 构建增强提示词
+   3. 加载历史消息（最近 20 条）
+   4. 构建对话上下文（System + History + Current）
+   5. LLM 生成
+   6. 保存对话历史
+   7. 返回响应（含 retrieved_contexts）
+   ```
+
+4. **API 端点（7/7 全部实现）**:
+   ```
+   ✅ POST /api/v1/chat/message        # 非流式对话
+   ✅ POST /api/v1/chat/stream         # 流式对话（SSE）✨ 新增
+   ✅ GET  /api/v1/chat/history/{id}   # 获取历史
+   ✅ DELETE /api/v1/chat/history/{id} # 清空历史
+   ✅ GET  /api/v1/models/list         # 模型列表
+   ✅ GET  /api/v1/models/status       # 模型状态
+   ✅ GET  /api/v1/health              # 健康检查
+   ```
+
+4.1. **流式响应实现** (`ChatService.chat_stream()`): ✨ 新增
+   - 事件流格式：
+     - `start`: 开始生成（含 session_id）
+     - `context`: RAG 检索结果（可选）
+     - `token`: 生成的文本片段（实时推送）
+     - `end`: 生成结束（含统计信息）
+     - `error`: 错误信息
+   - SSE 完整实现（sse-starlette）
+   - 异步流式生成（AsyncIterator）
+
+5. **RAG 提示词模板**:
+   ```python
+   prompt = f"""请基于以下相关文档回答用户问题。
+
+   相关文档：
+   [文档 1 - PROJ-123]
+   文档内容...
+
+   用户问题：{query}
+
+   请提供准确、简洁的回答，并在回答末尾注明引用的文档来源。"""
+   ```
+
+#### Gradio 前端架构 ✨ 新增
+
+1. **API 客户端** (`src/ui/utils/api_client.py`):
+   ```python
+   class ChatAPIClient:
+       - chat(): 非流式对话
+       - chat_stream(): 流式对话（AsyncIterator）
+       - get_history(), clear_history(): 历史管理
+       - get_models(): 获取模型列表
+       - health_check(): 健康检查
+   ```
+   - 完整的 SSE 事件流解析
+   - 错误处理和重连机制
+   - httpx 异步客户端
+
+2. **对话页面** (`src/ui/pages/chat_page.py`):
+   - **UI 组件**:
+     - Chatbot: 对话显示区域
+     - Textbox: 用户输入框
+     - Button: 发送按钮、清空按钮
+     - Dropdown: 模型选择器
+     - Checkbox: RAG 开关
+     - Slider: RAG 参数（top_k, temperature）
+     - Examples: 示例问题
+   - **事件处理**:
+     - `user_input_handler`: 添加用户消息到历史
+     - `bot_response_handler`: 流式响应实时更新（打字机效果）
+     - `clear_history_handler`: 清空历史
+   - **状态管理**: gr.State 保存 session_id
+
+3. **主程序入口** (`src/main.py`):
+   ```python
+   def main():
+       # threading 并发启动
+       fastapi_thread = Thread(target=run_fastapi, daemon=True)
+       fastapi_thread.start()
+
+       # 主线程运行 Gradio（阻塞）
+       run_gradio()
+   ```
+
+#### 关键技术决策
+
+1. **Gradio + FastAPI 分离架构**:
+   - FastAPI: 后端 API（端口 7860）
+   - Gradio: 前端 UI（端口 7861）
+   - 通信: HTTP POST/GET + SSE 流式
+
+2. **流式响应方案**: Server-Sent Events (SSE)
+   - 比 WebSocket 更简单
+   - 浏览器自动重连
+   - Gradio 原生支持
+
+3. **会话管理**: UUID + 无认证（MVP）
+   - 首次对话生成 session_id
+   - 前端保存在 gr.State
+   - 未来扩展: JWT + 用户认证
+
 ---
 
 ## 🔍 调试和验证 | Debug & Verification
@@ -164,20 +369,41 @@
 ### 快速测试命令
 
 ```bash
-# 1. 运行 RAG 模块单元测试 ⭐
+# 1. 启动 Web UI（一键启动）⭐ 最新
+python src/main.py
+# → FastAPI: http://localhost:7860/docs
+# → Gradio: http://localhost:7861
+
+# 2. 测试 FastAPI 后端导入
+python -c "from src.api import app; print('✓ FastAPI app OK')"
+
+# 3. 测试 Gradio 前端导入 ⭐ 新增
+python -c "from src.ui.app import create_app; print('✓ Gradio app OK')"
+
+# 4. 测试 SessionManager
+python -c "
+from src.api.services import get_session_manager
+import asyncio
+async def test():
+    manager = get_session_manager()
+    print(f'✓ SessionManager OK: {manager.storage_dir}')
+asyncio.run(test())
+"
+
+# 5. 测试 ChatService
+python -c "from src.api.services import get_chat_service; print('✓ ChatService OK')"
+
+# 6. 测试流式响应（需先启动 FastAPI）⭐ 新增
+python tests/manual/test_streaming.py
+
+# 7. 运行 RAG 模块单元测试
 pytest tests/unit/test_rag/test_chunker.py -v
 # 12 passed in 2.34s
 
-# 2. 运行 RAG 使用示例 ⭐
+# 5. 运行 RAG 使用示例
 python examples/rag_example.py
 
-# 3. 测试 Jira 数据获取
-python examples/test_jira.py
-
-# 4. 测试 ChromaDB 操作
-python examples/test_chroma.py
-
-# 5. 运行所有测试
+# 6. 运行所有测试
 pytest tests/unit/ -v
 ```
 
@@ -399,19 +625,38 @@ python -c "from src.core.rag import *; print('RAG module OK')"
 find src/core/rag -name "*.py" -exec wc -l {} + | tail -1
 ```
 
-### 4️⃣ 第四步：开始 Task 1.7
+### 4️⃣ 第四步：继续 Task 1.7
 
-**下一个任务**：Web UI 对话界面（5 故事点）
+**当前任务**：Web UI 对话界面（5 故事点，75% 完成）
 
-**告诉 Claude**：
+**✅ 已完成**：
+- FastAPI 后端 API（数据模型 + 会话管理 + 对话服务）
+- 非流式对话功能（含 RAG 集成）
+- 历史记录管理
+
+**⏳ 待完成**：
 ```
-开始 Task 1.7 - Web UI 对话界面的开发。
+继续 Task 1.7 - 还剩 25% 工作量
 需要实现：
-1. 基础对话界面（输入框 + 消息列表）
-2. 集成 LLM 进行对话生成
-3. 集成 RAG 检索增强回答
-4. 流式响应显示
-5. 简单的 UI 样式
+1. Phase 1.4: 流式响应（SSE）- 2-3小时
+2. Phase 2: Gradio 前端 UI - 1天
+   - 2.1: 基础布局（Chatbot + Textbox + Button）
+   - 2.2: API 客户端（httpx 调用 FastAPI）
+   - 2.3: 事件处理（流式响应实时更新）
+   - 2.4: UI 优化（示例问题、来源引用、样式）
+3. Phase 3: 集成测试（端到端验证）- 半天
+4. Phase 4: 单元测试和文档 - 半天
+
+快速恢复命令：
+# 测试当前后端
+python -c "from src.api import app; print('✓ FastAPI ready')"
+
+# 查看实现计划
+cat ~/.claude/plans/fuzzy-wondering-sketch.md
+
+# 查看待办事项
+# 已完成: Phase 1.1, 1.2, 1.3
+# 进行中: Phase 1.4 (流式响应)
 ```
 
 ---
@@ -425,4 +670,5 @@ find src/core/rag -name "*.py" -exec wc -l {} + | tail -1
 ---
 
 **书签创建时间**: 2026-01-12
-**下次更新**: 完成 Task 1.5 后更新
+**最近更新**: 2026-01-14 (Task 1.7 FastAPI 后端完成 75%)
+**下次更新**: 完成 Phase 1.4 流式响应或 Phase 2 Gradio UI 后更新

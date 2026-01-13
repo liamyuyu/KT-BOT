@@ -290,6 +290,189 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 保持项目代码风格一致性
 - 遵循 Pydantic v2 最佳实践
 
+#### 2026-01-14 - Sprint 1 Task 1.7: Web UI 对话界面 (90% 完成) 🔄
+
+**Epic 4: Web UI 界面**
+- ✅ **FastAPI 后端 API** (Story 4.1 - Phase 1, 完成)
+  - ✅ **Phase 1.1: 数据模型和路由框架**
+    - 创建 8 个 Pydantic 数据模型（ChatRequest, ChatResponse, ChatMessage, RetrievedContext, ChatHistory 等）
+    - 使用 Pydantic v2 ConfigDict 标准
+    - 创建 3 个 API 路由模块（chat, health, models）
+    - FastAPI 应用入口（生命周期管理、CORS、全局异常处理）
+    - 模型预加载机制（LLM + Embedding）
+
+  - ✅ **Phase 1.2: 会话管理器**
+    - `SessionManager`: 会话和历史管理
+    - 存储策略：内存缓存（TTL 30分钟）+ JSON 文件持久化
+    - 支持添加消息、获取历史、清空历史
+    - 自动容量限制（最多 100 条消息，自动裁剪）
+    - 缓存统计和过期清理
+
+  - ✅ **Phase 1.3: 对话服务（非流式）**
+    - `ChatService`: 核心业务逻辑协调器
+    - 集成 LLMManager、VectorRetriever、SessionManager
+    - 完整的 RAG 对话流程（检索 → 增强提示 → 生成 → 保存历史）
+    - RAG 提示词模板设计
+    - 历史消息管理（最近 20 条，滑动窗口）
+
+  - ✅ **Phase 1.4: 流式响应（SSE）**
+    - `ChatService.chat_stream()` 异步流式生成实现
+    - Server-Sent Events (SSE) 完整实现
+    - 事件流格式：start, context, token, end, error
+    - 流式对话接口（`/api/v1/chat/stream`）
+    - 实时 Token 推送和状态通知
+    - 完整的错误处理和异常捕获
+
+- 🔄 **Gradio 前端 UI** (Story 4.1 - Phase 2, 基本完成)
+  - ✅ **Phase 2.1: 基础布局**
+    - 创建 Gradio Blocks 主界面（`src/ui/app.py`）
+    - 对话页面实现（`src/ui/pages/chat_page.py`，436 行）
+    - UI 组件：Chatbot, Textbox, Button, Dropdown, Checkbox, Slider
+    - 示例问题（Examples）快速输入
+    - 配置面板（模型选择、RAG 开关、参数调整）
+    - 自定义 CSS 样式
+
+  - ✅ **Phase 2.2: API 客户端**
+    - `ChatAPIClient` 完整实现（`src/ui/utils/api_client.py`，240 行）
+    - 支持非流式对话（chat）和流式对话（chat_stream）
+    - SSE 事件流解析
+    - 历史管理（get_history, clear_history）
+    - 模型列表获取（get_models）
+    - 健康检查（health_check）
+    - 完整的错误处理和连接管理
+
+  - ✅ **Phase 2.3: 事件处理和流式更新**
+    - 用户输入处理（user_input_handler）
+    - 流式响应处理（bot_response_handler）
+    - 实时 UI 更新（打字机效果）
+    - 清空历史处理（clear_history_handler）
+    - 会话状态管理（gr.State）
+    - 状态显示和进度提示
+
+  - ⏳ **Phase 2.4: UI 优化**（待完善）
+    - 高级样式优化
+    - Markdown 渲染
+    - 代码高亮
+    - 来源引用展示增强
+
+- ✅ **端到端集成** (Story 4.1 - Phase 3.1, 完成)
+  - ✅ **主程序入口（src/main.py）**
+    - 并发启动 FastAPI（端口 7860）+ Gradio（端口 7861）
+    - 使用 threading 实现后台运行 FastAPI
+    - 主线程运行 Gradio（阻塞）
+    - 统一日志配置和启动信息
+    - 优雅关闭和异常处理
+
+**已实现的 API 端点（7/7）**
+- ✅ `POST /api/v1/chat/message` - 非流式对话（含 RAG）
+- ✅ `POST /api/v1/chat/stream` - 流式对话（SSE）✨ 新增
+- ✅ `GET /api/v1/chat/history/{session_id}` - 获取历史记录
+- ✅ `DELETE /api/v1/chat/history/{session_id}` - 清空历史
+- ✅ `GET /api/v1/models/list` - 获取支持的模型列表
+- ✅ `GET /api/v1/models/status` - 获取模型加载状态
+- ✅ `GET /api/v1/health` - 健康检查
+
+**技术架构**
+- **架构模式**: Gradio + FastAPI 分离式
+  - FastAPI 后端（端口 7860）：RESTful API
+  - Gradio 前端（端口 7861）：Python Web UI
+  - 通信方式：HTTP POST/GET + SSE 流式
+- **会话管理**: UUID + 无认证（MVP）
+- **流式响应**: Server-Sent Events (SSE)
+- **存储方案**: 内存缓存（快速访问）+ JSON 文件持久化
+
+**技术栈**
+- fastapi 0.109.0+ - Web 框架
+- uvicorn 0.27.0+ - ASGI 服务器
+- sse-starlette 1.8.2+ - SSE 支持
+- gradio 4.16.0+ - Web UI 框架（待使用）
+- httpx 0.26.0+ - 异步 HTTP 客户端（待使用）
+- pydantic 2.5.0+ - 数据验证
+
+**代码统计**
+- 已创建文件: 24 个
+  - src/api/ (16 文件) - 后端 API
+    - schemas/ (4 文件) - 数据模型
+    - routes/ (4 文件) - API 路由
+    - services/ (3 文件) - 业务逻辑
+    - 应用入口和配置 (3 文件)
+  - src/ui/ (7 文件) - 前端 UI
+    - pages/ (1 文件) - 对话页面
+    - utils/ (1 文件) - API 客户端
+    - app.py - UI 应用入口
+    - __init__.py 文件 (4 个)
+  - src/main.py - 主程序入口
+  - tests/manual/test_streaming.py - 流式响应测试脚本
+- 后端代码: ~1,100 行
+  - 数据模型: ~200 行
+  - 服务逻辑: ~550 行（SessionManager: 210, ChatService: 340 含流式）
+  - 路由接口: ~160 行
+  - 应用入口: ~70 行
+  - 依赖注入: ~30 行
+- 前端代码: ~800 行
+  - 对话页面: ~436 行（chat_page.py）
+  - API 客户端: ~240 行（api_client.py）
+  - UI 应用入口: ~60 行（app.py）
+  - __init__.py: ~10 行
+- 主程序: ~120 行（main.py 并发启动）
+- 测试脚本: ~200 行（test_streaming.py）
+- **总计**: ~2,200 行（24 个文件）
+
+**技术要点**
+- **数据模型**: 使用 Pydantic v2 ConfigDict
+- **会话管理**:
+  - 内存缓存 + JSON 持久化
+  - TTL 30分钟自动过期
+  - 容量限制 100 条消息
+  - 文件路径：`./data/chat_history/{session_id}.json`
+- **对话流程**:
+  ```
+  1. 创建/获取会话 (UUID)
+  2. RAG 检索（如果启用）
+     → VectorRetriever.retrieve(query, top_k)
+     → 构建增强提示词（含文档来源）
+  3. 加载历史消息（最近 20 条）
+  4. 构建对话上下文（System + History + Current）
+  5. LLM 生成（调用 Ollama）
+  6. 保存对话历史（用户 + 助手消息）
+  7. 返回响应（含 retrieved_contexts）
+  ```
+- **RAG 提示词模板**:
+  ```python
+  prompt = f"""请基于以下相关文档回答用户问题。
+
+  相关文档：
+  [文档 1 - PROJ-123]
+  文档内容...
+
+  用户问题：{query}
+
+  请提供准确、简洁的回答，并在回答末尾注明引用的文档来源。"""
+  ```
+
+**功能亮点**
+- 完整的对话管理（会话、历史、上下文）
+- RAG 检索自动集成（透明增强）
+- 会话持久化（断线重连不丢失）
+- 历史消息滑动窗口（避免上下文过长）
+- 模型预加载（启动时加载，提升响应速度）
+- 全局异常处理（统一错误响应）
+
+**待完成工作 (10%)**
+- ⏳ Phase 2.4: UI 优化（高级样式、Markdown 渲染、代码高亮）- 1-2 小时
+- ⏳ Phase 3.2-3.3: 功能验证和测试（RAG、错误场景）- 2-3 小时
+- ⏳ Phase 4: 单元测试和文档（测试覆盖、文档完善）- 半天
+
+**启动方式**
+```bash
+# 一键启动（FastAPI + Gradio）
+python src/main.py
+
+# 访问地址
+# - FastAPI 后端: http://localhost:7860/docs
+# - Gradio 前端: http://localhost:7861
+```
+
 ### Changed / 变更
 
 #### 2026-01-12
