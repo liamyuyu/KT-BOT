@@ -22,9 +22,7 @@ class ChatPage:
         """创建 Gradio UI"""
 
         with gr.Blocks(
-            title="KT-BOT - 知识库助手",
-            theme=gr.themes.Soft(),
-            css=self._get_custom_css()
+            title="KT-BOT - 知识库助手"
         ) as demo:
             # 页面标题
             gr.Markdown(
@@ -39,57 +37,7 @@ class ChatPage:
             session_id_state = gr.State(value=None)
 
             with gr.Row():
-                # 左侧：对话区域
-                with gr.Column(scale=3):
-                    # 对话框
-                    chatbot = gr.Chatbot(
-                        label="对话历史",
-                        height=500,
-                        show_copy_button=True,
-                        show_label=False,
-                        bubble_full_width=False,
-                        render_markdown=True,  # 启用 Markdown 渲染
-                        latex_delimiters=[  # 支持 LaTeX 数学公式
-                            {"left": "$$", "right": "$$", "display": True},
-                            {"left": "$", "right": "$", "display": False}
-                        ],
-                        avatar_images=(
-                            None,  # 用户头像（可以后续添加图片路径）
-                            None   # 助手头像
-                        )
-                    )
-
-                    # 输入区域
-                    with gr.Row():
-                        with gr.Column(scale=9):
-                            user_input = gr.Textbox(
-                                label="",
-                                placeholder="请输入您的问题...",
-                                lines=2,
-                                max_lines=5,
-                                show_label=False
-                            )
-
-                        with gr.Column(scale=1, min_width=100):
-                            send_btn = gr.Button(
-                                "发送",
-                                variant="primary",
-                                size="lg"
-                            )
-
-                    # 示例问题
-                    gr.Examples(
-                        examples=[
-                            "JIRA 中如何创建新的工作项？",
-                            "如何配置项目的权限设置？",
-                            "什么是 Sprint 和 Epic？",
-                            "如何导出 JIRA 报告？"
-                        ],
-                        inputs=user_input,
-                        label="💡 示例问题（点击快速输入）"
-                    )
-
-                # 右侧：配置面板
+                # 左侧：配置面板
                 with gr.Column(scale=1, min_width=250):
                     gr.Markdown("### ⚙️ 设置")
 
@@ -143,6 +91,45 @@ class ChatPage:
                         value="就绪",
                         interactive=False,
                         lines=2
+                    )
+
+                # 右侧：对话区域
+                with gr.Column(scale=3):
+                    # 对话框
+                    chatbot = gr.Chatbot(
+                        label="对话历史",
+                        height=500,
+                        show_label=False
+                    )
+
+                    # 输入区域
+                    with gr.Row():
+                        with gr.Column(scale=9):
+                            user_input = gr.Textbox(
+                                label="",
+                                placeholder="请输入您的问题...",
+                                lines=2,
+                                max_lines=5,
+                                show_label=False
+                            )
+
+                        with gr.Column(scale=1, min_width=100):
+                            send_btn = gr.Button(
+                                "发送",
+                                variant="primary",
+                                size="lg"
+                            )
+
+                    # 示例问题
+                    gr.Examples(
+                        examples=[
+                            "JIRA 中如何创建新的工作项？",
+                            "如何配置项目的权限设置？",
+                            "什么是 Sprint 和 Epic？",
+                            "如何导出 JIRA 报告？"
+                        ],
+                        inputs=user_input,
+                        label="💡 示例问题（点击快速输入）"
                     )
 
             # 事件绑定

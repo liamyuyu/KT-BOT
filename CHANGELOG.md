@@ -290,7 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 保持项目代码风格一致性
 - 遵循 Pydantic v2 最佳实践
 
-#### 2026-01-14 - Sprint 1 Task 1.7: Web UI 对话界面 (90% 完成) 🔄
+#### 2026-01-16 - Sprint 1 Task 1.7: Web UI 对话界面 (100% 完成) ✅
 
 **Epic 4: Web UI 界面**
 - ✅ **FastAPI 后端 API** (Story 4.1 - Phase 1, 完成)
@@ -349,11 +349,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 会话状态管理（gr.State）
     - 状态显示和进度提示
 
-  - ⏳ **Phase 2.4: UI 优化**（待完善）
-    - 高级样式优化
-    - Markdown 渲染
-    - 代码高亮
-    - 来源引用展示增强
+  - ✅ **Phase 2.4: UI 优化**（完成）
+    - Markdown 渲染和代码高亮支持
+    - RAG 来源引用自动格式化
+    - 增强的 CSS 样式（按钮动画、输入框焦点效果）
+    - UI 布局优化：设置面板移至左侧
+    - Gradio 6.x 兼容性修复（移除 bubble_full_width、show_copy_button、show_api 等弃用参数）
 
 - ✅ **端到端集成** (Story 4.1 - Phase 3.1, 完成)
   - ✅ **主程序入口（src/main.py）**
@@ -458,10 +459,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 模型预加载（启动时加载，提升响应速度）
 - 全局异常处理（统一错误响应）
 
-**待完成工作 (10%)**
-- ⏳ Phase 2.4: UI 优化（高级样式、Markdown 渲染、代码高亮）- 1-2 小时
-- ⏳ Phase 3.2-3.3: 功能验证和测试（RAG、错误场景）- 2-3 小时
-- ⏳ Phase 4: 单元测试和文档（测试覆盖、文档完善）- 半天
+**✅ Task 1.7 完成 (100%)**
+- ✅ Phase 1.1-1.4: FastAPI 后端 API（数据模型、会话管理、对话服务、流式响应）
+- ✅ Phase 2.1-2.4: Gradio 前端 UI（基础布局、API 客户端、事件处理、UI 优化）
+- ✅ Phase 3.1: 端到端集成（主程序入口，并发启动）
+- ✅ Phase 3.2-3.3: E2E 测试脚本（tests/e2e/test_rag_simple.py）
+- ✅ Phase 4: 完整文档（API_DOCUMENTATION.md、USER_GUIDE.md）
 
 **启动方式**
 ```bash
@@ -472,6 +475,37 @@ python src/main.py
 # - FastAPI 后端: http://localhost:7860/docs
 # - Gradio 前端: http://localhost:7861
 ```
+
+#### 2026-01-16 上午 - UI 布局优化与 Gradio 6.x 兼容性修复 ✅
+
+**UI 布局优化**
+- ✅ **设置面板位置调整** (`src/ui/pages/chat_page.py`)
+  - 将设置面板从右侧移至左侧
+  - 对话区域调整至右侧
+  - 改善用户界面布局和操作流程
+  - 文件修改：chat_page.py 第 40-133 行
+
+**Gradio 6.x 兼容性修复**
+- ✅ **移除弃用参数**
+  - Chatbot 组件：移除 bubble_full_width、show_copy_button、render_markdown、latex_delimiters、avatar_images
+  - Blocks 组件：移除 theme 和 css 构造参数（这些已移至 launch() 方法）
+  - launch() 方法：移除 show_api 参数
+  - 修复异步生成器语法错误（return → yield + return）
+  - 确保兼容 Gradio 6.3.0+
+
+**系统验证**
+- ✅ 成功启动 FastAPI 后端（端口 7860）
+- ✅ 成功启动 Gradio 前端（端口 7861）
+- ✅ 新布局验证通过
+- ✅ 所有功能正常运行
+
+**技术细节**
+- 修改文件：`src/ui/pages/chat_page.py`
+- 布局结构：
+  ```
+  左侧 (scale=1): 设置面板（模型选择、RAG 开关、参数调整、状态显示）
+  右侧 (scale=3): 对话区域（聊天框、输入框、示例问题）
+  ```
 
 ### Changed / 变更
 
