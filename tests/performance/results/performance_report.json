@@ -1,0 +1,202 @@
+[
+  {
+    "retriever": "BM25",
+    "tests": [
+      {
+        "document_count": 100,
+        "index_time_seconds": 2.434,
+        "latency_ms": {
+          "mean": 1.25,
+          "median": 0.37,
+          "p95": 4.79,
+          "min": 0.26,
+          "max": 4.79
+        },
+        "queries_tested": 5
+      },
+      {
+        "document_count": 500,
+        "index_time_seconds": 0.184,
+        "latency_ms": {
+          "mean": 0.72,
+          "median": 0.75,
+          "p95": 0.77,
+          "min": 0.61,
+          "max": 0.77
+        },
+        "queries_tested": 5
+      },
+      {
+        "document_count": 1000,
+        "index_time_seconds": 0.36,
+        "latency_ms": {
+          "mean": 1.97,
+          "median": 2.03,
+          "p95": 2.53,
+          "min": 1.52,
+          "max": 2.53
+        },
+        "queries_tested": 5
+      },
+      {
+        "document_count": 5000,
+        "index_time_seconds": 2.686,
+        "latency_ms": {
+          "mean": 10.24,
+          "median": 9.08,
+          "p95": 15.59,
+          "min": 7.91,
+          "max": 15.59
+        },
+        "queries_tested": 5
+      }
+    ]
+  },
+  {
+    "retriever": "Hybrid",
+    "tests": [
+      {
+        "document_count": 100,
+        "latency_no_cache_ms": {
+          "mean": 2.33,
+          "median": 2.06,
+          "p95": 3.75,
+          "min": 1.74,
+          "max": 3.75
+        },
+        "latency_with_cache_ms": {
+          "mean": 0.03,
+          "median": 0.03,
+          "min": 0.01,
+          "max": 0.04
+        },
+        "cache_hit_rate": 0.4,
+        "avg_vector_time_ms": 0.82,
+        "avg_bm25_time_ms": 0.82,
+        "avg_fusion_time_ms": 0.38,
+        "queries_tested": 5
+      },
+      {
+        "document_count": 500,
+        "latency_no_cache_ms": {
+          "mean": 4.84,
+          "median": 4.2,
+          "p95": 7.27,
+          "min": 3.91,
+          "max": 7.27
+        },
+        "latency_with_cache_ms": {
+          "mean": 0.04,
+          "median": 0.05,
+          "min": 0.01,
+          "max": 0.06
+        },
+        "cache_hit_rate": 0.4,
+        "avg_vector_time_ms": 2.13,
+        "avg_bm25_time_ms": 2.13,
+        "avg_fusion_time_ms": 0.59,
+        "queries_tested": 5
+      },
+      {
+        "document_count": 1000,
+        "latency_no_cache_ms": {
+          "mean": 5.59,
+          "median": 5.66,
+          "p95": 6.01,
+          "min": 5.13,
+          "max": 6.01
+        },
+        "latency_with_cache_ms": {
+          "mean": 0.03,
+          "median": 0.03,
+          "min": 0.01,
+          "max": 0.05
+        },
+        "cache_hit_rate": 0.4,
+        "avg_vector_time_ms": 3.29,
+        "avg_bm25_time_ms": 3.29,
+        "avg_fusion_time_ms": 0.51,
+        "queries_tested": 5
+      },
+      {
+        "document_count": 5000,
+        "latency_no_cache_ms": {
+          "mean": 24.12,
+          "median": 24.13,
+          "p95": 30.94,
+          "min": 16.73,
+          "max": 30.94
+        },
+        "latency_with_cache_ms": {
+          "mean": 0.03,
+          "median": 0.04,
+          "min": 0.01,
+          "max": 0.05
+        },
+        "cache_hit_rate": 0.4,
+        "avg_vector_time_ms": 13.5,
+        "avg_bm25_time_ms": 13.5,
+        "avg_fusion_time_ms": 0.88,
+        "queries_tested": 5
+      }
+    ]
+  },
+  {
+    "test": "Concurrent Queries",
+    "document_count": 1000,
+    "tests": [
+      {
+        "concurrent_users": 1,
+        "total_queries": 1,
+        "total_time_seconds": 0.004,
+        "throughput_qps": 260.95,
+        "latency_ms": {
+          "mean": 3.5,
+          "median": 3.5,
+          "p95": 3.5,
+          "min": 3.5,
+          "max": 3.5
+        }
+      },
+      {
+        "concurrent_users": 5,
+        "total_queries": 5,
+        "total_time_seconds": 0.013,
+        "throughput_qps": 378.76,
+        "latency_ms": {
+          "mean": 9.79,
+          "median": 12.05,
+          "p95": 12.76,
+          "min": 0.03,
+          "max": 12.76
+        }
+      },
+      {
+        "concurrent_users": 10,
+        "total_queries": 10,
+        "total_time_seconds": 0.018,
+        "throughput_qps": 558.41,
+        "latency_ms": {
+          "mean": 7.91,
+          "median": 7.35,
+          "p95": 17.25,
+          "min": 0.01,
+          "max": 17.25
+        }
+      },
+      {
+        "concurrent_users": 20,
+        "total_queries": 20,
+        "total_time_seconds": 0.001,
+        "throughput_qps": 16256.99,
+        "latency_ms": {
+          "mean": 0.02,
+          "median": 0.01,
+          "p95": 0.08,
+          "min": 0.01,
+          "max": 0.08
+        }
+      }
+    ]
+  }
+]

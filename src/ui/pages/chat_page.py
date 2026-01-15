@@ -64,8 +64,61 @@ class ChatPage:
                             value=3,
                             step=1,
                             label="检索文档数量",
-                            info="Top-K 相关文档"
+                            info="最终返回的文档数量"
                         )
+
+                        # 重排序开关
+                        enable_reranking = gr.Checkbox(
+                            value=True,
+                            label="启用重排序 (Reranker)",
+                            info="使用 Cross-Encoder 模型重新评分，提升相关性"
+                        )
+
+                        # 重排序参数（仅在启用时显示）
+                        with gr.Group(visible=True) as rerank_params:
+                            rerank_top_k = gr.Slider(
+                                minimum=5,
+                                maximum=50,
+                                value=10,
+                                step=5,
+                                label="重排序候选数量",
+                                info="先召回更多候选，重排序后返回 Top-K"
+                            )
+
+                        # 检索策略选择
+                        retrieval_method = gr.Radio(
+                            choices=["hybrid", "vector", "bm25"],
+                            value="hybrid",
+                            label="检索策略",
+                            info="hybrid: 混合检索 | vector: 向量检索 | bm25: 全文检索"
+                        )
+
+                        # 混合检索参数（仅在 hybrid 模式下显示）
+                        with gr.Group(visible=True) as hybrid_params:
+                            fusion_method = gr.Dropdown(
+                                choices=["rrf", "weighted", "linear"],
+                                value="rrf",
+                                label="融合方法",
+                                info="rrf: Reciprocal Rank Fusion | weighted: 加权平均 | linear: 线性组合"
+                            )
+
+                            vector_weight = gr.Slider(
+                                minimum=0.0,
+                                maximum=1.0,
+                                value=0.5,
+                                step=0.1,
+                                label="向量检索权重",
+                                info="0.0-1.0，仅 weighted/linear 模式使用"
+                            )
+
+                            bm25_weight = gr.Slider(
+                                minimum=0.0,
+                                maximum=1.0,
+                                value=0.5,
+                                step=0.1,
+                                label="BM25 检索权重",
+                                info="0.0-1.0，仅 weighted/linear 模式使用"
+                            )
 
                     # 生成参数
                     temperature = gr.Slider(
@@ -147,7 +200,13 @@ class ChatPage:
                     model_selector,
                     rag_enabled,
                     rag_top_k,
-                    temperature
+                    temperature,
+                    retrieval_method,
+                    fusion_method,
+                    vector_weight,
+                    bm25_weight,
+                    enable_reranking,
+                    rerank_top_k
                 ],
                 outputs=[chatbot, session_id_state, status_box],
                 queue=True
@@ -167,7 +226,13 @@ class ChatPage:
                     model_selector,
                     rag_enabled,
                     rag_top_k,
-                    temperature
+                    temperature,
+                    retrieval_method,
+                    fusion_method,
+                    vector_weight,
+                    bm25_weight,
+                    enable_reranking,
+                    rerank_top_k
                 ],
                 outputs=[chatbot, session_id_state, status_box],
                 queue=True
@@ -186,6 +251,22 @@ class ChatPage:
                 fn=lambda x: gr.update(visible=x),
                 inputs=[rag_enabled],
                 outputs=[rag_params],
+                queue=False
+            )
+
+            # 检索策略控制混合参数显示
+            retrieval_method.change(
+                fn=lambda method: gr.update(visible=(method == "hybrid")),
+                inputs=[retrieval_method],
+                outputs=[hybrid_params],
+                queue=False
+            )
+
+            # 重排序开关控制参数显示
+            enable_reranking.change(
+                fn=lambda x: gr.update(visible=x),
+                inputs=[enable_reranking],
+                outputs=[rerank_params],
                 queue=False
             )
 
@@ -222,7 +303,13 @@ class ChatPage:
         model_name: str,
         enable_rag: bool,
         rag_top_k: int,
-        temperature: float
+        temperature: float,
+        retrieval_method: str = "hybrid",
+        fusion_method: str = "rrf",
+        vector_weight: float = 0.5,
+        bm25_weight: float = 0.5,
+        enable_reranking: bool = True,
+        rerank_top_k: int = 10
     ) -> Tuple[List[Tuple[str, str]], str, str]:
         """
         处理机器人响应（流式）
@@ -234,6 +321,12 @@ class ChatPage:
             enable_rag: 是否启用 RAG
             rag_top_k: RAG 检索数量
             temperature: 生成温度
+            retrieval_method: 检索方法（vector/bm25/hybrid）
+            fusion_method: 融合方法（rrf/weighted/linear）
+            vector_weight: 向量检索权重
+            bm25_weight: BM25 检索权重
+            enable_reranking: 是否启用重排序
+            rerank_top_k: 重排序候选数量
 
         Returns:
             (更新后的历史, 会话ID, 状态信息)
@@ -255,7 +348,13 @@ class ChatPage:
                 model_name=model_name,
                 enable_rag=enable_rag,
                 rag_top_k=rag_top_k,
-                temperature=temperature
+                temperature=temperature,
+                retrieval_method=retrieval_method,
+                fusion_method=fusion_method,
+                vector_weight=vector_weight,
+                bm25_weight=bm25_weight,
+                enable_reranking=enable_reranking,
+                rerank_top_k=rerank_top_k
             ):
                 event_type = event.get("event")
                 data = event.get("data", {})

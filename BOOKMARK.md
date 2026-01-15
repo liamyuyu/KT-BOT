@@ -1,15 +1,16 @@
 # 🔖 开发进度书签 | Development Bookmark
 
-> **最后更新**: 2026-01-16 (上午)
-> **当前 Sprint**: Sprint 1 (2026-01-03 ~ 2026-01-16)
-> **剩余时间**: 0 天 - Sprint 1 完成！🎉
-> **当前阶段**: Task 1.7 完成（100% - 全部功能交付 + UI 优化）✅
+> **最后更新**: 2026-01-16 (下午)
+> **当前 Sprint**: Sprint 2 (2026-01-17 ~ 2026-01-30)
+> **Sprint 1**: ✅ 全部完成 (55/55 故事点)
+> **Sprint 2 进度**: 🔄 59% 完成 (17/29 故事点)
+> **当前阶段**: Task 2.5 Reranker 模型集成完成 ✅，准备开始 Task 2.6
 
 ---
 
 ## 🎯 当前状态 | Current Status
 
-### ✅ 已完成任务 (55/55 故事点，100% ✅)
+### ✅ Sprint 1 - 已完成任务 (55/55 故事点，100% ✅)
 
 | 任务 | Story | 状态 | 完成日期 | 交付 |
 |------|-------|------|----------|------|
@@ -111,16 +112,102 @@ python src/main.py
 # → Gradio: http://localhost:7861
 ```
 
-**Sprint 进度条**:
+**Sprint 1 进度条**:
 ```
 ██████████████████████████████ 100% (55/55 points) ✅ COMPLETE!
 ```
 
 ---
 
+### 🔄 Sprint 2 - 进行中任务 (17/29 故事点，59% 🔄)
+
+| 任务 | Story | 状态 | 完成日期 | 交付 |
+|------|-------|------|----------|------|
+| Task 2.1 | BM25 全文检索 (4点) | ✅ | 2026-01-16 | ~436 行代码，9 测试 |
+| Task 2.2 | RRF 融合算法 (3点) | ✅ | 2026-01-16 | ~632 行代码，13 测试 |
+| Task 2.3 | 检索性能优化 (3点) | ✅ | 2026-01-16 | 并发检索+缓存 |
+| Task 2.4 | API 和 UI 集成 (3点) | ✅ | 2026-01-16 | ~650 行代码，12 测试 |
+| Task 2.5 | **Reranker 模型集成 (4点)** | ✅ | 2026-01-16 | ~384 行代码，14 测试 |
+| Task 2.6 | 完整检索流程集成 (4点) | ⏳ | - | 待开始 |
+| Task 2.7 | 文档管理后端 API (4点) | ⏳ | - | 待开始 |
+| Task 2.8 | 文档管理 UI 界面 (4点) | ⏳ | - | 待开始 |
+
+**最新提交**:
+```bash
+# Task 2.5 - Reranker 模型集成（100% 完成）✅
+
+✅ 依赖安装
+   - sentence-transformers 5.2.0
+   - torch 2.2.2
+   - numpy 1.26.4（兼容性修复）
+
+✅ 数据模型（src/core/rag/models.py）
+   - RerankerConfig: 重排序配置（8 个参数）
+   - RerankerResult: 重排序结果（保留排名变化）
+
+✅ CrossEncoderReranker 实现（src/core/rag/reranker/）
+   - cross_encoder.py: 91 行核心代码
+   - 延迟加载机制（首次使用时加载模型）
+   - 自动设备检测（CPU/CUDA/MPS）
+   - 批量打分优化（batch_size 可配置）
+   - Sigmoid 分数归一化（0-1 区间）
+   - 完整的异步支持（asyncio.to_thread）
+
+✅ 单元测试（tests/unit/test_rag/test_reranker.py）
+   - 14 个测试用例全部通过
+   - 测试覆盖率: 85.71%
+   - 测试重排序功能、批量处理、分数归一化等
+
+# 代码统计
+- 已创建文件: 3 个
+  - 核心模块: src/core/rag/reranker/cross_encoder.py（91 行）
+  - 模块导出: src/core/rag/reranker/__init__.py
+  - 单元测试: tests/unit/test_rag/test_reranker.py（293 行）
+- 数据模型更新: RerankerConfig, RerankerResult
+- **总计**: ~384 行新代码
+
+# 关键特性
+1. Cross-Encoder 模型集成（bge-reranker-large）
+2. 批量处理优化（batch_size=4）
+3. 延迟加载（节省内存）
+4. 完整的错误处理和日志记录
+5. 高测试覆盖率（85.71%）
+```
+
+**Sprint 2 进度条**:
+```
+█████████████████░░░░░░░░░░░░░ 59% (17/29 points) 🔄 IN PROGRESS
+```
+
+---
+
 ## 🔄 下一步任务 | Next Task
 
-### 🎉 **Sprint 1 已完成！**
+### 🎯 **Task 2.6: 完整检索流程集成** (4点, 预计 2 天)
+
+**目标**: 将 HybridRetriever 和 CrossEncoderReranker 组合成完整的 RAG Pipeline
+
+**任务清单**:
+- [ ] 更新 RAG Pipeline（Hybrid → Rerank → Top-K）
+- [ ] 添加重排序开关和参数
+- [ ] 更新 API 和 UI 支持重排序
+- [ ] 实现批量重排序优化
+- [ ] 添加重排序缓存机制
+- [ ] 创建端到端测试
+- [ ] 性能对比测试（开启/关闭重排序）
+
+**预期交付**:
+- 更新的 ChatService 集成重排序
+- API 新增参数（enable_reranking, rerank_top_k）
+- UI 新增重排序控制面板
+- E2E 测试脚本
+- 性能对比报告
+
+---
+
+## 🎉 已完成里程碑
+
+### 🎊 **Sprint 1 已完成！**
 
 所有任务（55/55 故事点）已交付完成，包括：
 

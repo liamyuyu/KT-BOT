@@ -72,7 +72,6 @@ def run_gradio():
             server_port=settings.gradio_port,
             share=settings.gradio_share,
             show_error=True,
-            show_api=False,
             prevent_thread_lock=False  # 主线程阻塞
         )
 
@@ -89,9 +88,10 @@ def main():
 
     # 检查配置
     logger.info(f"Environment: {settings.environment}")
-    logger.info(f"LLM Provider: {settings.llm_provider}")
-    logger.info(f"Embedding Provider: {settings.embedding_provider}")
-    logger.info(f"Vector DB: ChromaDB ({settings.chromadb_path})")
+    logger.info(f"Ollama Host: {settings.ollama_host}")
+    logger.info(f"LLM Model: {settings.ollama_model}")
+    logger.info(f"Embedding Model: {settings.ollama_embedding_model}")
+    logger.info(f"Vector DB: ChromaDB ({settings.chroma_persist_directory})")
 
     try:
         # 1. 启动 FastAPI（后台线程）

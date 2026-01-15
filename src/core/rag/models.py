@@ -145,3 +145,139 @@ class RetrievalConfig(BaseModel):
             }
         }
     )
+
+
+class BM25Config(BaseModel):
+    """
+    BM25 检索配置模型
+    """
+    k1: float = Field(1.5, description="BM25 k1 参数（词频饱和度）", ge=0.0, le=3.0)
+    b: float = Field(0.75, description="BM25 b 参数（文档长度归一化）", ge=0.0, le=1.0)
+    use_idf: bool = Field(True, description="是否使用 IDF（逆文档频率）")
+    enable_cache: bool = Field(True, description="是否启用索引缓存")
+    cache_dir: str = Field("./data/bm25_cache", description="缓存目录")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "k1": 1.5,
+                "b": 0.75,
+                "use_idf": True,
+                "enable_cache": True,
+                "cache_dir": "./data/bm25_cache"
+            }
+        }
+    )
+
+
+class HybridConfig(BaseModel):
+    """
+    混合检索配置模型
+    """
+    fusion_method: str = Field(
+        "rrf",
+        description="融合方法：rrf (Reciprocal Rank Fusion), weighted (加权平均), linear (线性组合)"
+    )
+    rrf_k: int = Field(60, description="RRF 参数 k（默认 60）", ge=1, le=1000)
+    vector_weight: float = Field(
+        0.5,
+        description="向量检索权重（0-1，weighted/linear 方法使用）",
+        ge=0.0,
+        le=1.0
+    )
+    bm25_weight: float = Field(
+        0.5,
+        description="BM25 检索权重（0-1，weighted/linear 方法使用）",
+        ge=0.0,
+        le=1.0
+    )
+    deduplicate: bool = Field(True, description="是否去重（基于 chunk_id）")
+    normalize_scores: bool = Field(True, description="是否归一化分数到 0-1 区间")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "fusion_method": "rrf",
+                "rrf_k": 60,
+                "vector_weight": 0.5,
+                "bm25_weight": 0.5,
+                "deduplicate": True,
+                "normalize_scores": True
+            }
+        }
+    )
+
+    def validate_weights(self) -> None:
+        """验证权重配置的合理性"""
+        if self.fusion_method in ["weighted", "linear"]:
+            total_weight = self.vector_weight + self.bm25_weight
+            if not (0.99 <= total_weight <= 1.01):  # 允许浮点误差
+                raise ValueError(
+                    f"vector_weight + bm25_weight must equal 1.0, got {total_weight}"
+                )
+
+
+class RerankerConfig(BaseModel):
+    """
+    重排序配置模型
+    """
+    model_name: str = Field(
+        "BAAI/bge-reranker-large",
+        description="Reranker 模型名称"
+    )
+    batch_size: int = Field(4, description="批量处理大小", ge=1, le=32)
+    max_length: int = Field(512, description="最大序列长度", ge=128, le=1024)
+    normalize_scores: bool = Field(True, description="是否归一化分数到 0-1 区间")
+    use_fp16: bool = Field(False, description="是否使用 FP16 加速（需要 GPU）")
+    device: Optional[str] = Field(None, description="运行设备（cpu/cuda/mps）")
+    cache_dir: Optional[str] = Field(None, description="模型缓存目录")
+    timeout_seconds: float = Field(30.0, description="超时时间（秒）", ge=1.0, le=300.0)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "BAAI/bge-reranker-large",
+                "batch_size": 4,
+                "max_length": 512,
+                "normalize_scores": True,
+                "use_fp16": False,
+                "device": "cpu",
+                "timeout_seconds": 30.0
+            }
+        }
+    )
+
+
+class RerankerResult(BaseModel):
+    """
+    重排序结果模型
+    """
+    chunk_id: str = Field(..., description="块 ID")
+    parent_id: str = Field(..., description="父文档 ID")
+    content: str = Field(..., description="块内容")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="块元数据")
+    original_score: float = Field(..., description="原始检索分数")
+    rerank_score: float = Field(..., description="重排序分数（0-1，越大越相关）")
+    original_rank: int = Field(..., description="原始排名（从 0 开始）")
+    new_rank: int = Field(..., description="重排序后排名（从 0 开始）")
+    chunk_index: int = Field(..., description="块在原文档中的序号")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "chunk_id": "PROJ-123_chunk_0",
+                "parent_id": "PROJ-123",
+                "content": "这是一个 Jira Issue 的描述内容...",
+                "chunk_index": 0,
+                "metadata": {
+                    "source_type": "jira",
+                    "issue_type": "Story",
+                    "project_key": "PROJ"
+                },
+                "original_score": 0.75,
+                "rerank_score": 0.92,
+                "original_rank": 5,
+                "new_rank": 1
+            }
+        }
+    )

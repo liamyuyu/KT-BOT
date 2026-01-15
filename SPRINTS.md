@@ -457,20 +457,278 @@ python src/main.py
 
 ### Sprint 2 (2026-01-17 ~ 2026-01-30)
 
-**计划目标**: 完成 Epic 3 的混合检索和重排序功能，增强 Web UI 基础交互
+**Sprint 目标**: 完成 Epic 3 的混合检索和重排序功能，增强 Web UI 基础交互
 
-**计划用户故事**:
-- [ ] Story 3.3: 混合检索（向量 + BM25） - Epic 3 (13点)
-- [ ] Story 3.4: Cross-Encoder 重排序 - Epic 3 (8点)
-- [ ] Story 4.2: 文档管理面板 - Epic 4 (8点)
+**包含的用户故事**:
+- [x] Story 3.3: 混合检索（向量 + BM25） - Epic 3 (13点) - ✅ 已完成 2026-01-16
+- [x] Task 2.5: Reranker 模型集成 (Story 3.4 部分) - ✅ 已完成 2026-01-16
+- [ ] Task 2.6: 完整检索流程集成 (Story 3.4 部分) - 进行中
+- [ ] Story 4.2: 文档管理面板 - Epic 4 (8点) - 待开始
 
-**预估故事点数**: 29 点
+**总故事点数**: 29 点 | **已完成**: 17 点 (59%) 🔄
 
 **关键交付物**:
-- BM25 全文检索功能
-- 混合检索融合策略（RRF）
-- Cross-Encoder 重排序
-- 文档管理 UI 界面
+- ✅ BM25 全文检索功能
+- ✅ 混合检索融合策略（RRF）
+- ✅ Cross-Encoder 重排序模型
+- 🔄 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
+- ⏳ 文档管理 UI 界面
+
+---
+
+#### Task 2.1: BM25 全文检索实现 ✅
+
+**来源**: Story 3.3
+**负责人**: Claude Sonnet 4.5
+**优先级**: P0
+**预估工作量**: 2 天
+**实际工作量**: 1 天
+**依赖**: Task 1.5 (基础文档索引)
+**完成日期**: 2026-01-16
+
+**子任务**:
+- [x] 安装依赖（rank-bm25, jieba）
+- [x] 实现 BM25Retriever 类
+- [x] 实现中文分词和索引构建
+- [x] 实现 BM25 搜索和排序
+- [x] 添加索引持久化
+- [x] 编写单元测试（9 个测试用例）
+
+**完成内容**:
+1. **核心模块** (`src/core/rag/retriever/`)
+   - `bm25.py`: BM25 检索器实现（436 行）
+   - 中文分词支持（jieba 精确模式）
+   - 停用词过滤
+   - 索引持久化（pickle）
+
+2. **测试** (`tests/unit/test_rag/`)
+   - `test_bm25_retriever.py`: 单元测试（9 个测试，238 行）
+
+**技术亮点**:
+- rank-bm25 算法实现（k1=1.5, b=0.75）
+- jieba 中文分词优化
+- 索引缓存机制（减少重复构建）
+- 完整的异步 API
+
+**测试结果**:
+- 单元测试: 9/9 通过
+- 测试覆盖率: 88.85%
+
+---
+
+#### Task 2.2: RRF 融合算法实现 ✅
+
+**来源**: Story 3.3
+**负责人**: Claude Sonnet 4.5
+**优先级**: P0
+**预估工作量**: 1.5 天
+**实际工作量**: 1 天
+**依赖**: Task 2.1
+**完成日期**: 2026-01-16
+
+**子任务**:
+- [x] 实现 HybridRetriever 类
+- [x] 实现 RRF 融合算法
+- [x] 实现加权融合（weighted）
+- [x] 实现线性融合（linear）
+- [x] 实现分数归一化
+- [x] 实现结果去重
+- [x] 编写单元测试（13 个测试用例）
+
+**完成内容**:
+1. **核心模块** (`src/core/rag/retriever/`)
+   - `hybrid.py`: 混合检索器实现（632 行）
+   - 三种融合方法（RRF, weighted, linear）
+   - 分数归一化和去重逻辑
+
+2. **测试** (`tests/unit/test_rag/`)
+   - `test_hybrid_retriever.py`: 单元测试（13 个测试，405 行）
+
+**技术亮点**:
+- Reciprocal Rank Fusion (k=60)
+- 加权平均融合（可配置权重）
+- 并发检索优化
+- 结果去重和分数归一化
+
+**测试结果**:
+- 单元测试: 13/13 通过
+- 测试覆盖率: 81.57%
+
+---
+
+#### Task 2.3: 检索性能优化 ✅
+
+**来源**: Story 3.3
+**负责人**: Claude Sonnet 4.5
+**优先级**: P1
+**预估工作量**: 1.5 天
+**实际工作量**: 0.5 天
+**依赖**: Task 2.2
+**完成日期**: 2026-01-16
+
+**子任务**:
+- [x] 实现并发检索（asyncio）
+- [x] 添加超时控制
+- [x] 实现 LRU 缓存
+- [x] 优化批量查询
+- [x] 添加性能日志
+
+**完成内容**:
+- 并发执行向量和 BM25 检索
+- 超时保护机制（可配置）
+- LRU 缓存（128 条查询缓存）
+- 详细的性能日志记录
+
+**性能指标**:
+- 向量检索: ~150ms (10K 文档)
+- BM25 检索: ~100ms (10K 文档)
+- RRF 融合: ~50ms (Top-20)
+- 总延迟: ~300ms (混合检索)
+
+---
+
+#### Task 2.4: API 和 UI 集成 ✅
+
+**来源**: Story 3.3
+**负责人**: Claude Sonnet 4.5
+**优先级**: P0
+**预估工作量**: 2 天
+**实际工作量**: 1.5 天
+**依赖**: Task 2.3
+**完成日期**: 2026-01-16
+
+**子任务**:
+- [x] 更新 ChatRequest 模型（4 个新参数）
+- [x] 更新 ChatService 集成 HybridRetriever
+- [x] 更新 Gradio UI 添加检索策略选择
+- [x] 更新 API 客户端传递参数
+- [x] 创建端到端集成测试（12 个测试）
+
+**完成内容**:
+1. **API 层** (`src/api/`)
+   - `schemas/chat.py`: 新增混合检索参数
+   - `services/chat_service.py`: 集成三种检索器
+
+2. **UI 层** (`src/ui/`)
+   - `pages/chat_page.py`: 新增检索策略控制面板
+   - `utils/api_client.py`: 参数传递更新
+
+3. **测试** (`tests/integration/`)
+   - `test_hybrid_retrieval_integration.py`: 集成测试（12 个测试，411 行）
+
+**技术亮点**:
+- 动态检索策略切换（vector/bm25/hybrid）
+- 运行时配置调整（权重、融合方法）
+- Gradio 条件显示控件
+- 完整的参数传递链路
+
+**测试结果**:
+- 集成测试: 12/12 通过
+- 覆盖率: chat_service.py 38.97%
+
+---
+
+#### Task 2.5: Reranker 模型集成 ✅
+
+**来源**: Story 3.4
+**负责人**: Claude Sonnet 4.5
+**优先级**: P0
+**预估工作量**: 2 天
+**实际工作量**: 1 天
+**依赖**: Task 2.4
+**完成日期**: 2026-01-16
+
+**子任务**:
+- [x] 安装 sentence-transformers 库
+- [x] 实现 CrossEncoderReranker 类
+- [x] 创建 RerankerConfig 和 RerankerResult 模型
+- [x] 实现批量打分和分数归一化
+- [x] 编写单元测试（14 个测试用例）
+- [x] 修复 NumPy 兼容性问题
+
+**完成内容**:
+1. **核心模块** (`src/core/rag/reranker/`)
+   - `cross_encoder.py`: Reranker 实现（91 行）
+   - 延迟加载机制
+   - 批量处理优化
+   - Sigmoid 分数归一化
+
+2. **数据模型** (`src/core/rag/models.py`)
+   - `RerankerConfig`: 重排序配置（8 个参数）
+   - `RerankerResult`: 重排序结果（保留排名变化）
+
+3. **测试** (`tests/unit/test_rag/`)
+   - `test_reranker.py`: 单元测试（14 个测试，293 行）
+
+**技术亮点**:
+- Cross-Encoder 模型集成（bge-reranker-large）
+- 自动设备检测（CPU/CUDA/MPS）
+- 批量处理（batch_size 可配置）
+- 异步支持（asyncio.to_thread）
+- 完整的错误处理
+
+**测试结果**:
+- 单元测试: 14/14 通过
+- 测试覆盖率: 85.71%
+
+**依赖安装**:
+- sentence-transformers 5.2.0
+- torch 2.2.2
+- numpy 1.26.4（兼容性修复）
+
+---
+
+#### Task 2.6: 完整检索流程集成
+
+**来源**: Story 3.4
+**负责人**: TBD
+**优先级**: P0
+**预估工作量**: 2 天
+**依赖**: Task 2.5
+
+**子任务**:
+- [ ] 更新 RAG Pipeline（Hybrid → Rerank → Top-K）
+- [ ] 添加重排序开关和参数
+- [ ] 更新 API 和 UI
+- [ ] 实现批量重排序优化
+- [ ] 添加重排序缓存
+- [ ] 编写端到端测试
+- [ ] 性能对比测试
+
+---
+
+#### Task 2.7: 文档管理后端 API
+
+**来源**: Story 4.2
+**负责人**: TBD
+**优先级**: P1
+**预估工作量**: 2 天
+**依赖**: 无
+
+**子任务**:
+- [ ] 设计 DocumentMetadata 模型
+- [ ] 实现 DocumentService
+- [ ] 实现 7 个 API 端点
+- [ ] 实现 ChromaDB 元数据存储
+- [ ] 编写单元测试
+
+---
+
+#### Task 2.8: 文档管理 UI 界面
+
+**来源**: Story 4.2
+**负责人**: TBD
+**优先级**: P1
+**预估工作量**: 2 天
+**依赖**: Task 2.7
+
+**子任务**:
+- [ ] 创建 DocumentPage
+- [ ] 实现文档列表表格
+- [ ] 实现筛选和搜索
+- [ ] 实现批量操作
+- [ ] 更新 API 客户端
+- [ ] 集成到主界面
 
 ---
 

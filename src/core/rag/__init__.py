@@ -14,7 +14,11 @@ from .models import (
     IndexResult,
     RetrievalResult,
     ChunkingConfig,
-    RetrievalConfig
+    RetrievalConfig,
+    BM25Config,
+    HybridConfig,
+    RerankerConfig,
+    RerankerResult
 )
 
 # Exceptions
@@ -38,7 +42,17 @@ from .indexer import DocumentIndexer, get_document_indexer
 from .retriever import (
     BaseRetriever,
     VectorRetriever,
-    get_vector_retriever
+    get_vector_retriever,
+    BM25Retriever,
+    get_bm25_retriever,
+    HybridRetriever,
+    get_hybrid_retriever
+)
+
+# Reranker
+from .reranker import (
+    CrossEncoderReranker,
+    get_reranker
 )
 
 __all__ = [
@@ -48,6 +62,10 @@ __all__ = [
     "RetrievalResult",
     "ChunkingConfig",
     "RetrievalConfig",
+    "BM25Config",
+    "HybridConfig",
+    "RerankerConfig",
+    "RerankerResult",
 
     # Exceptions
     "RAGError",
@@ -69,4 +87,12 @@ __all__ = [
     "BaseRetriever",
     "VectorRetriever",
     "get_vector_retriever",
+    "BM25Retriever",
+    "get_bm25_retriever",
+    "HybridRetriever",
+    "get_hybrid_retriever",
+
+    # Reranker
+    "CrossEncoderReranker",
+    "get_reranker",
 ]

@@ -25,7 +25,11 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="调试模式")
     log_level: str = Field(default="INFO", description="日志级别")
     host: str = Field(default="0.0.0.0", description="服务监听地址")
-    port: int = Field(default=7860, description="服务端口")
+    port: int = Field(default=7860, description="FastAPI 服务端口")
+
+    # ========== Gradio Settings ==========
+    gradio_port: int = Field(default=7861, description="Gradio UI 端口")
+    gradio_share: bool = Field(default=False, description="是否创建公共分享链接")
 
     # ========== Epic 1: Ollama Configuration ==========
     ollama_host: str = Field(

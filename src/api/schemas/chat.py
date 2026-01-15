@@ -30,6 +30,40 @@ class ChatRequest(BaseModel):
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="生成温度")
     max_tokens: Optional[int] = Field(None, ge=1, description="最大生成 token 数")
 
+    # 混合检索参数
+    retrieval_method: str = Field(
+        "hybrid",
+        description="检索方法：vector（向量检索）/ bm25（全文检索）/ hybrid（混合检索）"
+    )
+    vector_weight: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="向量检索权重（0.0-1.0，仅在 hybrid 模式下生效）"
+    )
+    bm25_weight: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="BM25 检索权重（0.0-1.0，仅在 hybrid 模式下生效）"
+    )
+    fusion_method: str = Field(
+        "rrf",
+        description="融合方法：rrf（Reciprocal Rank Fusion）/ weighted（加权平均）/ linear（线性组合）"
+    )
+
+    # 重排序参数
+    enable_reranking: bool = Field(
+        True,
+        description="是否启用重排序（Cross-Encoder 模型重新评分）"
+    )
+    rerank_top_k: int = Field(
+        10,
+        ge=5,
+        le=50,
+        description="重排序前的候选数量（先召回 rerank_top_k 个，重排序后返回 rag_top_k 个）"
+    )
+
 
 # ============ 响应模型 ============
 
@@ -41,6 +75,13 @@ class RetrievedContext(BaseModel):
     content: str = Field(..., description="文本内容")
     score: float = Field(..., description="相似度分数")
     source: Dict[str, Any] = Field(..., description="来源信息（issue_key, project_key 等）")
+    retrieval_method: Optional[str] = Field(None, description="使用的检索方法（vector/bm25/hybrid）")
+    distance: Optional[float] = Field(None, description="向量距离（越小越相似）")
+
+    # 重排序信息
+    rerank_score: Optional[float] = Field(None, description="重排序分数（0-1，越大越相关）")
+    original_rank: Optional[int] = Field(None, description="原始排名（重排序前）")
+    reranked: Optional[bool] = Field(False, description="是否经过重排序")
 
 
 class ChatResponse(BaseModel):

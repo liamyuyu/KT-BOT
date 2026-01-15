@@ -5,9 +5,15 @@ Retriever Module
 
 from .base import BaseRetriever
 from .vector import VectorRetriever, get_vector_retriever
+from .bm25 import BM25Retriever, get_bm25_retriever
+from .hybrid import HybridRetriever, get_hybrid_retriever
 
 __all__ = [
     "BaseRetriever",
     "VectorRetriever",
     "get_vector_retriever",
+    "BM25Retriever",
+    "get_bm25_retriever",
+    "HybridRetriever",
+    "get_hybrid_retriever",
 ]

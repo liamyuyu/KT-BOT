@@ -43,7 +43,13 @@ class ChatAPIClient:
         enable_rag: bool = True,
         rag_top_k: int = 3,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        retrieval_method: str = "hybrid",
+        fusion_method: str = "rrf",
+        vector_weight: float = 0.5,
+        bm25_weight: float = 0.5,
+        enable_reranking: bool = True,
+        rerank_top_k: int = 10
     ) -> Dict[str, Any]:
         """
         非流式对话
@@ -56,6 +62,12 @@ class ChatAPIClient:
             rag_top_k: RAG 检索数量
             temperature: 生成温度
             max_tokens: 最大 token 数
+            retrieval_method: 检索方法（vector/bm25/hybrid）
+            fusion_method: 融合方法（rrf/weighted/linear）
+            vector_weight: 向量检索权重
+            bm25_weight: BM25 检索权重
+            enable_reranking: 是否启用重排序
+            rerank_top_k: 重排序候选数量
 
         Returns:
             响应数据字典
@@ -69,7 +81,13 @@ class ChatAPIClient:
             "enable_rag": enable_rag,
             "rag_top_k": rag_top_k,
             "temperature": temperature,
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
+            "retrieval_method": retrieval_method,
+            "fusion_method": fusion_method,
+            "vector_weight": vector_weight,
+            "bm25_weight": bm25_weight,
+            "enable_reranking": enable_reranking,
+            "rerank_top_k": rerank_top_k
         }
 
         try:
@@ -96,7 +114,13 @@ class ChatAPIClient:
         enable_rag: bool = True,
         rag_top_k: int = 3,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        retrieval_method: str = "hybrid",
+        fusion_method: str = "rrf",
+        vector_weight: float = 0.5,
+        bm25_weight: float = 0.5,
+        enable_reranking: bool = True,
+        rerank_top_k: int = 10
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         流式对话（SSE）
@@ -109,6 +133,12 @@ class ChatAPIClient:
             rag_top_k: RAG 检索数量
             temperature: 生成温度
             max_tokens: 最大 token 数
+            retrieval_method: 检索方法（vector/bm25/hybrid）
+            fusion_method: 融合方法（rrf/weighted/linear）
+            vector_weight: 向量检索权重
+            bm25_weight: BM25 检索权重
+            enable_reranking: 是否启用重排序
+            rerank_top_k: 重排序候选数量
 
         Yields:
             事件字典 {"event": "...", "data": {...}}
@@ -122,7 +152,13 @@ class ChatAPIClient:
             "enable_rag": enable_rag,
             "rag_top_k": rag_top_k,
             "temperature": temperature,
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
+            "retrieval_method": retrieval_method,
+            "fusion_method": fusion_method,
+            "vector_weight": vector_weight,
+            "bm25_weight": bm25_weight,
+            "enable_reranking": enable_reranking,
+            "rerank_top_k": rerank_top_k
         }
 
         try:

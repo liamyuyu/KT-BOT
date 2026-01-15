@@ -12,9 +12,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [未发布]
 
-> 对应 **Sprint 1** 进行中的任务，详见 [SPRINTS.md](./SPRINTS.md)
+> 对应 **Sprint 2** 进行中的任务，详见 [SPRINTS.md](./SPRINTS.md)
 
 ### Added / 新增
+
+#### 2026-01-16 (下午) - Sprint 2 Task 2.5: Reranker Model Integration ✅
+
+**Epic 3: RAG 检索引擎 - Cross-Encoder 重排序** (Story 3.4 部分完成)
+
+- ✅ **CrossEncoderReranker 实现** (Story 3.4 - Task 2.5)
+  - 基于 sentence-transformers 的 Cross-Encoder 重排序器
+  - 支持 bge-reranker-large 模型（可配置其他模型）
+  - 延迟加载机制（节省内存，按需加载）
+  - 自动设备检测（CPU/CUDA/MPS）
+  - 批量打分优化（batch_size 可配置，默认 4）
+  - Sigmoid 分数归一化（0-1 区间）
+  - 完整的异步支持（asyncio.to_thread）
+  - 单例模式 `get_reranker()`
+
+- ✅ **数据模型** (Story 3.4)
+  - `RerankerConfig`: 重排序配置（8 个参数）
+    - model_name, batch_size, max_length
+    - normalize_scores, use_fp16, device
+    - cache_dir, timeout_seconds
+  - `RerankerResult`: 重排序结果模型
+    - 保留原始分数和重排序分数
+    - 保留原始排名和新排名
+    - 完整的元数据和内容
+
+- ✅ **依赖安装和兼容性**
+  - sentence-transformers 5.2.0
+  - torch 2.2.2
+  - numpy 1.26.4（兼容性修复，降级以支持 PyTorch）
+
+- ✅ **测试** (Story 3.4)
+  - 14 个单元测试全部通过
+  - 测试覆盖率: 85.71%
+  - 测试内容：配置验证、设备检测、分数归一化、基本重排序、相关性提升、Top-K、批量处理、单例模式等
+
+**技术栈**
+- sentence-transformers 5.2.0 - Cross-Encoder 模型
+- torch 2.2.2 - 深度学习框架
+- numpy 1.26.4 - 数值计算
+
+**代码统计**
+- 生产代码: ~91 行（cross_encoder.py）
+- 测试代码: ~293 行（test_reranker.py）
+- 数据模型: RerankerConfig, RerankerResult
+- 总计: ~384 行（3 个文件）
+
+**关键特性**
+1. 延迟加载模型（首次使用时加载）
+2. 批量处理优化（减少推理次数）
+3. 自动设备检测（充分利用硬件）
+4. 完整的错误处理和日志记录
+5. 高测试覆盖率（85.71%）
+
+#### 2026-01-16 (上午) - Sprint 2 Task 2.1-2.4: Hybrid Retrieval System ✅
+
+**Epic 3: RAG 检索引擎 - 混合检索** (Story 3.3 完成)
+
+- ✅ **BM25 全文检索** (Story 3.3 - Task 2.1)
+  - `BM25Retriever`: 基于 rank-bm25 算法的全文检索器
+  - jieba 中文分词支持（精确模式）
+  - 停用词过滤和分词优化
+  - 索引持久化（pickle）和缓存机制
+  - 完整的异步 API
+  - 9 个单元测试，覆盖率 88.85%
+
+- ✅ **RRF 融合算法** (Story 3.3 - Task 2.2)
+  - `HybridRetriever`: 混合检索器实现
+  - 三种融合方法：RRF（Reciprocal Rank Fusion）、加权平均（weighted）、线性组合（linear）
+  - 分数归一化和结果去重
+  - 并发检索优化（asyncio）
+  - 13 个单元测试，覆盖率 81.57%
+
+- ✅ **检索性能优化** (Story 3.3 - Task 2.3)
+  - 并发执行向量和 BM25 检索
+  - 超时保护机制（可配置）
+  - LRU 缓存（128 条查询缓存）
+  - 详细的性能日志记录
+  - 性能指标：混合检索 ~300ms（10K 文档）
+
+- ✅ **API 和 UI 集成** (Story 3.3 - Task 2.4)
+  - ChatRequest 新增 4 个混合检索参数
+    - retrieval_method（vector/bm25/hybrid）
+    - fusion_method（rrf/weighted/linear）
+    - vector_weight, bm25_weight
+  - ChatService 集成三种检索器
+  - Gradio UI 新增检索策略控制面板
+    - 检索策略选择器（Radio）
+    - 混合参数组（条件显示）
+    - 融合方法下拉框、权重滑块
+  - 12 个集成测试全部通过
+
+**技术栈**
+- rank-bm25 0.2.2 - BM25 算法实现
+- jieba 0.42.1 - 中文分词
+- 异步并发（asyncio）
+
+**代码统计**
+- BM25Retriever: ~436 行
+- HybridRetriever: ~632 行
+- API/UI 集成: ~650 行
+- 测试代码: ~1,054 行
+- 总计: ~2,772 行（6 个文件）
+
+---
+
+### Sprint 1 交付成果 (2026-01-03 ~ 2026-01-16) ✅
 
 #### 2026-01-03 - Sprint 1 Task 1.1: LLM Module Implementation ✅
 
