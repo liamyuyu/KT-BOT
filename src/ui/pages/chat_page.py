@@ -46,8 +46,15 @@ class ChatPage:
                         label="对话历史",
                         height=500,
                         show_copy_button=True,
+                        show_label=False,
+                        bubble_full_width=False,
+                        render_markdown=True,  # 启用 Markdown 渲染
+                        latex_delimiters=[  # 支持 LaTeX 数学公式
+                            {"left": "$$", "right": "$$", "display": True},
+                            {"left": "$", "right": "$", "display": False}
+                        ],
                         avatar_images=(
-                            None,  # 用户头像
+                            None,  # 用户头像（可以后续添加图片路径）
                             None   # 助手头像
                         )
                     )
@@ -245,10 +252,12 @@ class ChatPage:
             (更新后的历史, 会话ID, 状态信息)
         """
         if not history or history[-1][1] is not None:
-            return history, session_id, "无待处理消息"
+            yield history, session_id, "无待处理消息"
+            return
 
         user_message = history[-1][0]
         assistant_message = ""
+        rag_contexts = []
         status = "生成中..."
 
         try:
@@ -270,21 +279,33 @@ class ChatPage:
                     status = "正在生成..."
 
                 elif event_type == "context":
-                    # RAG 检索结果
-                    contexts = data.get("contexts", [])
-                    status = f"检索到 {len(contexts)} 个相关文档，正在生成..."
+                    # RAG 检索结果 - 保存以便后续格式化
+                    rag_contexts = data.get("contexts", [])
+                    status = f"检索到 {len(rag_contexts)} 个相关文档，正在生成..."
 
                 elif event_type == "token":
                     # 追加 token
                     content = data.get("content", "")
                     assistant_message += content
-                    history[-1][1] = assistant_message
+
+                    # 构建带格式的响应（实时更新）
+                    formatted_response = self._format_response(
+                        assistant_message,
+                        rag_contexts if rag_contexts else None
+                    )
+                    history[-1][1] = formatted_response
 
                     # 实时更新 UI
                     yield history, session_id, status
 
                 elif event_type == "end":
-                    # 生成结束
+                    # 生成结束 - 添加最终格式化
+                    formatted_response = self._format_response(
+                        assistant_message,
+                        rag_contexts if rag_contexts else None
+                    )
+                    history[-1][1] = formatted_response
+
                     model = data.get("model", "unknown")
                     token_count = data.get("token_count", 0)
                     duration_ms = data.get("duration_ms", 0)
@@ -293,17 +314,63 @@ class ChatPage:
                 elif event_type == "error":
                     # 错误处理
                     error_msg = data.get("message", "未知错误")
-                    history[-1][1] = f"❌ 错误: {error_msg}"
+                    history[-1][1] = f"❌ **错误**: {error_msg}"
                     status = f"错误: {error_msg}"
                     yield history, session_id, status
                     return
 
         except Exception as e:
             logger.error(f"Bot response error: {e}", exc_info=True)
-            history[-1][1] = f"❌ 系统错误: {str(e)}"
+            history[-1][1] = f"❌ **系统错误**: {str(e)}"
             status = f"错误: {str(e)}"
 
         yield history, session_id, status
+
+    @staticmethod
+    def _format_response(content: str, contexts: Optional[List[dict]] = None) -> str:
+        """
+        格式化响应内容，添加 RAG 来源引用
+
+        Args:
+            content: 原始响应内容
+            contexts: RAG 检索结果
+
+        Returns:
+            格式化后的 Markdown 内容
+        """
+        formatted = content
+
+        # 如果有 RAG 来源，添加引用部分
+        if contexts and len(contexts) > 0:
+            formatted += "\n\n---\n\n"
+            formatted += "### 📚 参考来源\n\n"
+
+            for i, ctx in enumerate(contexts, 1):
+                source = ctx.get("source", {})
+                score = ctx.get("score", 0)
+                chunk_id = ctx.get("chunk_id", "unknown")
+
+                # 提取来源信息
+                source_type = source.get("source_type", "unknown")
+                project_key = source.get("project_key", "")
+                issue_key = source.get("issue_key", "")
+                title = source.get("title", "未知文档")
+
+                # 构建来源显示
+                if source_type == "jira_issue" and issue_key:
+                    source_text = f"**[{i}] JIRA Issue: {issue_key}** - {title}"
+                elif source_type == "confluence_page":
+                    source_text = f"**[{i}] Confluence Page** - {title}"
+                else:
+                    source_text = f"**[{i}] 文档** - {title}"
+
+                # 添加相似度分数
+                score_percent = int(score * 100)
+                formatted += f"{source_text} (相关度: {score_percent}%)\n"
+
+            formatted += "\n> 💡 回答基于以上文档内容生成"
+
+        return formatted
 
     async def clear_history_handler(
         self,
@@ -341,20 +408,120 @@ class ChatPage:
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* 对话框样式 */
+        /* 对话框样式优化 */
         .message-row {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+        }
+
+        /* 用户消息样式 */
+        .message.user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        /* 助手消息样式 */
+        .message.bot {
+            background: #f7f7f8;
+            padding: 12px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        /* Markdown 代码块样式 */
+        .message code {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9em;
+        }
+
+        .message pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .message pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* 引用样式 */
+        .message blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* 链接样式 */
+        .message a {
+            color: #667eea;
+            text-decoration: none;
+            border-bottom: 1px solid #667eea;
+        }
+
+        .message a:hover {
+            color: #764ba2;
+            border-bottom-color: #764ba2;
         }
 
         /* 按钮样式 */
         .primary-button {
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .primary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         /* 状态框样式 */
         .status-box {
             font-size: 0.85em;
             color: #666;
+            background: #f0f0f0;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        /* 参考来源样式 */
+        .message hr {
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 16px 0;
+        }
+
+        /* 输入框样式 */
+        textarea {
+            border-radius: 8px !important;
+            border: 2px solid #e0e0e0 !important;
+        }
+
+        textarea:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+
+        /* 滑块样式 */
+        input[type="range"] {
+            accent-color: #667eea;
+        }
+
+        /* 复选框样式 */
+        input[type="checkbox"] {
+            accent-color: #667eea;
         }
         """
 
