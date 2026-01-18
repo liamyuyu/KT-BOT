@@ -1,0 +1,373 @@
+# KT-BOT - Enterprise Knowledge Bot
+# Claude Code Bookmark File
+# Last Updated: 2026-01-18
+
+================================================================================
+## Project Overview
+================================================================================
+
+name: KT-BOT
+type: Python
+description: Enterprise Knowledge Bot with RAG capabilities, integrating Jira/Confluence data with LLM for intelligent Q&A
+language: Python 3.10+
+framework: FastAPI + Gradio
+
+## Current Sprint Status
+sprint: Sprint 2 (2026-01-17 ~ 2026-01-30)
+progress: 59% (17/29 story points)
+current_task: Task 2.6 - Complete Retrieval Pipeline Integration
+sprint_1: 100% Complete (55/55 points)
+
+================================================================================
+## Entry Points & Key Directories
+================================================================================
+
+### Entry Points
+- src/main.py                    # Main entry: starts FastAPI (7860) + Gradio (7861)
+- src/api/main.py                # FastAPI application
+- src/ui/app.py                  # Gradio UI application
+
+### Key Directories
+src/
+├── api/                         # FastAPI backend
+│   ├── routes/                  # API endpoints (chat, health, models)
+│   ├── schemas/                 # Pydantic models
+│   └── services/                # Business logic (ChatService, SessionManager)
+├── core/
+│   ├── llm/                     # LLM integration (Ollama)
+│   ├── rag/                     # RAG pipeline (chunker, indexer, retriever, reranker)
+│   └── vectordb/                # ChromaDB integration
+├── integrations/
+│   ├── jira/                    # Jira API client
+│   └── confluence/              # Confluence API client
+├── ui/                          # Gradio frontend
+│   ├── pages/                   # UI pages (chat_page.py)
+│   └── utils/                   # API client, helpers
+└── utils/                       # Common utilities
+
+================================================================================
+## Core Components
+================================================================================
+
+### RAG Pipeline (src/core/rag/)
+- chunker.py                     # TextChunker: 800 chars, 150 overlap
+- indexer.py                     # DocumentIndexer: Jira -> ChromaDB
+- retriever/vector.py            # VectorRetriever: similarity search
+- retriever/hybrid.py            # HybridRetriever: vector + BM25
+- retriever/bm25.py              # BM25Retriever: full-text search with jieba
+- reranker/cross_encoder.py      # CrossEncoderReranker: bge-reranker-large
+
+### LLM Integration (src/core/llm/)
+- manager.py                     # LLMManager: model lifecycle
+- ollama.py                      # OllamaLLM: chat + embedding
+- health.py                      # LLMHealthChecker
+- Default model: bge-large-zh (1024 dims)
+
+### Vector Database (src/core/vectordb/)
+- chroma_client.py               # ChromaDB client wrapper
+- Persist: ./data/chroma
+
+### API Endpoints (src/api/routes/)
+- POST /api/v1/chat/message      # Non-streaming chat
+- POST /api/v1/chat/stream       # SSE streaming chat
+- GET  /api/v1/chat/history/{id} # Get chat history
+- DELETE /api/v1/chat/history/{id} # Clear history
+- GET  /api/v1/models/list       # List models
+- GET  /api/v1/models/status     # Model status
+- GET  /api/v1/health            # Health check
+
+================================================================================
+## Sprint History & Progress
+================================================================================
+
+### Sprint 1 - COMPLETED (55/55 story points, 100%)
+
+| Task | Story Points | Status | Date | Deliverables |
+|------|-------------|--------|------|--------------|
+| Task 1.1 | Ollama Model Init (5) | Done | 2026-01-03 | ~1,216 lines |
+| Task 1.2 | Multi-Model Management (8) | Done | 2026-01-03 | Parallel with 1.1 |
+| Task 1.3 | Jira API Integration (8) | Done | 2026-01-05 | ~1,400 lines |
+| Task 1.4 | Confluence API Integration (8) | Done | 2026-01-12 | ~2,050 lines |
+| Task 1.6 | ChromaDB Config (8) | Done | 2026-01-12 | ~2,136 lines |
+| Task 1.5 | Basic Document Indexing (13) | Done | 2026-01-12 | ~1,181 lines |
+| Task 1.7 | Web UI Dialog Interface (5) | Done | 2026-01-16 | ~2,200 lines |
+
+### Sprint 2 - IN PROGRESS (17/29 story points, 59%)
+
+| Task | Story Points | Status | Date | Deliverables |
+|------|-------------|--------|------|--------------|
+| Task 2.1 | BM25 Full-Text Search (4) | Done | 2026-01-16 | ~436 lines, 9 tests |
+| Task 2.2 | RRF Fusion Algorithm (3) | Done | 2026-01-16 | ~632 lines, 13 tests |
+| Task 2.3 | Retrieval Performance Opt (3) | Done | 2026-01-16 | Concurrent + Cache |
+| Task 2.4 | API and UI Integration (3) | Done | 2026-01-16 | ~650 lines, 12 tests |
+| Task 2.5 | Reranker Model Integration (4) | Done | 2026-01-16 | ~384 lines, 14 tests |
+| Task 2.6 | Complete Retrieval Pipeline (4) | Pending | - | Next task |
+| Task 2.7 | Doc Management Backend API (4) | Pending | - | Planned |
+| Task 2.8 | Doc Management UI (4) | Pending | - | Planned |
+
+================================================================================
+## Changelog History
+================================================================================
+
+### 2026-01-16 (PM) - Task 2.5: Reranker Model Integration
+- CrossEncoderReranker with sentence-transformers
+- bge-reranker-large model support
+- Lazy loading, auto device detection (CPU/CUDA/MPS)
+- Batch scoring optimization, Sigmoid normalization
+- 14 unit tests, 85.71% coverage
+- Dependencies: sentence-transformers 5.2.0, torch 2.2.2, numpy 1.26.4
+
+### 2026-01-16 (AM) - Task 2.1-2.4: Hybrid Retrieval System
+- BM25Retriever with jieba tokenization, stopword filtering
+- HybridRetriever with 3 fusion methods: RRF, weighted, linear
+- Concurrent retrieval optimization, LRU cache (128 queries)
+- ChatRequest: retrieval_method, fusion_method, vector_weight, bm25_weight
+- Gradio UI: retrieval strategy panel
+- Dependencies: rank-bm25 0.2.2, jieba 0.42.1
+
+### 2026-01-16 - Task 1.7: Web UI Dialog Interface (100% Complete)
+- FastAPI backend API (7 endpoints)
+- SessionManager: memory cache + JSON persistence, TTL 30min
+- ChatService: RAG + LLM integration, streaming SSE
+- Gradio frontend: ChatPage 436 lines, ChatAPIClient 240 lines
+- UI optimization: Markdown, code highlight, source citations
+- Main entry: concurrent FastAPI (7860) + Gradio (7861)
+- Total: ~2,200 lines (24 files)
+
+### 2026-01-12 - Task 1.5: RAG Document Indexing
+- TextChunker: 800 chars, 150 overlap, smart boundary
+- DocumentIndexer: Jira -> ChromaDB batch indexing
+- VectorRetriever: similarity search with metadata filter
+- 12 unit tests, 95%+ coverage
+- Total: ~1,181 lines
+
+### 2026-01-12 - Task 1.6: ChromaDB Vector Database
+- ChromaDBClient: CRUD, batch operations, similarity search
+- Empty metadata handling, NumPy array checks
+- 39 unit tests, 76% coverage
+- Total: ~2,136 lines
+
+### 2026-01-12 - Task 1.4: Confluence API Integration
+- ConfluenceClient: pages, spaces, search
+- Models: ConfluencePage, ConfluenceSpace
+- Total: ~2,050 lines
+
+### 2026-01-05 - Task 1.3: Jira API Integration
+- JiraClient: issues, JQL, pagination, retry
+- Models: JiraIssue, JiraUser, JiraProject, JiraComment
+- 17 unit tests
+- Total: ~1,400 lines
+
+### 2026-01-03 - Task 1.1-1.2: LLM Module Implementation
+- BaseLLM, BaseEmbedding abstract classes
+- OllamaLLM, OllamaEmbedding with async support
+- LLMManager: model lifecycle, caching
+- LLMHealthChecker: service monitoring
+- 33 unit tests
+- Total: ~1,879 lines
+
+### 2025-12-30 - v0.1.0 MVP Release
+- Ollama integration, Jira/Confluence integration
+- RAG engine with ChromaDB
+- Basic web interface
+- Docker Compose deployment
+
+================================================================================
+## Technical Notes
+================================================================================
+
+### ChromaDB Integration
+- Empty metadata: single doc use None, batch use {"_placeholder": "true"}
+- NumPy array check: use `is not None` and `len()` explicitly
+- Batch operations: batch_size=100
+
+### Jira Data Structure
+- JiraIssue fields: summary, description, comments, labels, status, priority
+- Pagination: start_at, max_results
+
+### Embedding Model
+- Default: bge-large-zh (1024 dims)
+- Usage: manager.create_embedding().embed(text)
+
+### RAG Document Indexing
+- Chunking: 800 chars, 150 overlap, smart boundary
+- Chunk ID: parent_id_chunk_index
+- Score: 1.0 / (1.0 + distance)
+- Batch: Jira 50/batch, ChromaDB 100/batch
+
+### Web UI Architecture
+- FastAPI backend (7860) + Gradio frontend (7861)
+- Session: UUID, memory + JSON persistence, TTL 30min, max 100 messages
+- Streaming: Server-Sent Events (SSE)
+- Events: start, context, token, end, error
+
+### Hybrid Retrieval
+- Methods: vector, bm25, hybrid
+- Fusion: rrf (k=60), weighted, linear
+- BM25: jieba tokenization, stopword filter, pickle persistence
+
+### Reranker
+- Model: bge-reranker-large
+- Batch: batch_size=4
+- Lazy loading, Sigmoid normalization
+
+================================================================================
+## Quick Commands
+================================================================================
+
+```bash
+# Start application
+python src/main.py
+# → FastAPI: http://localhost:7860/docs
+# → Gradio: http://localhost:7861
+
+# Run tests
+pytest tests/unit/ -v
+pytest tests/unit/test_rag/ -v
+pytest tests/unit/test_rag/test_chunker.py -v
+
+# Check modules
+python -c "from src.core.rag import *; print('RAG OK')"
+python -c "from src.api import app; print('API OK')"
+python -c "from src.ui.app import create_app; print('Gradio OK')"
+
+# Health checks
+curl http://localhost:7860/api/v1/health
+curl http://localhost:11434/api/tags
+
+# Test session manager
+python -c "
+from src.api.services import get_session_manager
+import asyncio
+async def test():
+    manager = get_session_manager()
+    print(f'SessionManager OK: {manager.storage_dir}')
+asyncio.run(test())
+"
+
+# Git operations
+git status
+git log --oneline -5
+```
+
+================================================================================
+## Debug & Verification
+================================================================================
+
+### Service Health Checks
+```bash
+# Ollama service
+curl http://localhost:11434/api/tags
+
+# Jira connection
+python -c "from src.integrations.jira import get_jira_client; import asyncio; client = get_jira_client(); print(asyncio.run(client.health_check()))"
+
+# ChromaDB
+python -c "from src.core.vectordb import get_chroma_client; print(get_chroma_client().health_check())"
+```
+
+### RAG Module Test
+```bash
+pytest tests/unit/test_rag/test_chunker.py -v  # 12 passed
+python examples/rag_example.py
+python -c "from src.core.rag import *; print('RAG module OK')"
+```
+
+### Coverage Report
+```bash
+pytest tests/unit/test_rag/ --cov=src/core/rag --cov-report=html
+```
+
+================================================================================
+## Documentation
+================================================================================
+
+- START_HERE.md                  # Quick start guide
+- BOOKMARK.md                    # Detailed progress bookmark
+- SPRINTS.md                     # Sprint planning
+- CHANGELOG.md                   # Version changelog
+- docs/API_DOCUMENTATION.md      # API reference
+- docs/USER_GUIDE.md             # User guide
+- docs/SPRINT1_TASK1.1_SUMMARY.md # LLM integration summary
+- docs/SPRINT1_TASK1.5_RAG_INDEXING.md # RAG indexing doc (620 lines)
+- docs/SPRINT1_TASK1.6_CHROMADB.md # ChromaDB doc (1,435 lines)
+
+================================================================================
+## Configuration
+================================================================================
+
+- .env                           # Environment variables (Jira/Confluence/Ollama)
+- config/                        # Configuration files
+- pyproject.toml                 # Project dependencies
+
+### Key Dependencies
+- chromadb>=0.4.22
+- jira>=3.5.0
+- atlassian-python-api
+- pydantic>=2.0.0
+- tenacity>=8.0.0
+- httpx
+- fastapi>=0.109.0
+- uvicorn>=0.27.0
+- sse-starlette>=1.8.2
+- gradio>=4.16.0
+- rank-bm25>=0.2.2
+- jieba>=0.42.1
+- sentence-transformers>=5.2.0
+- torch>=2.2.2
+- numpy>=1.26.4
+
+================================================================================
+## Key Technical Decisions
+================================================================================
+
+- Architecture: FastAPI backend + Gradio frontend (separate processes)
+- Streaming: Server-Sent Events (SSE)
+- Session: UUID-based, in-memory + JSON persistence
+- Embedding: Ollama bge-large-zh (1024 dims)
+- Vector DB: ChromaDB (persistent)
+- Hybrid Retrieval: Vector + BM25 with RRF fusion
+- Reranker: Cross-Encoder (bge-reranker-large)
+
+================================================================================
+## Next Tasks (Sprint 2 Remaining)
+================================================================================
+
+### Task 2.6: Complete Retrieval Pipeline Integration (4 points)
+- Update RAG Pipeline (Hybrid -> Rerank -> Top-K)
+- Add reranking toggle and parameters (enable_reranking, rerank_top_k)
+- Update API and UI for reranking support
+- Implement batch reranking optimization
+- Add reranking cache mechanism
+- Create end-to-end tests
+- Performance comparison (with/without reranking)
+
+### Task 2.7: Document Management Backend API (4 points)
+- Document CRUD endpoints
+- Upload/delete functionality
+- Metadata management
+
+### Task 2.8: Document Management UI (4 points)
+- Document list view
+- Upload interface
+- Search and filter
+
+================================================================================
+## Code Statistics
+================================================================================
+
+Total Production Code: ~15,000+ lines
+- LLM Module: ~1,879 lines (10 files)
+- Jira Integration: ~1,400 lines (6 files)
+- Confluence Integration: ~2,050 lines
+- ChromaDB: ~2,136 lines
+- RAG Indexing: ~1,181 lines
+- Web UI: ~2,200 lines (24 files)
+- Hybrid Retrieval: ~2,772 lines (6 files)
+- Reranker: ~384 lines (3 files)
+
+Test Coverage:
+- RAG Chunker: 95.45%
+- Reranker: 85.71%
+- BM25: 88.85%
+- Hybrid: 81.57%
