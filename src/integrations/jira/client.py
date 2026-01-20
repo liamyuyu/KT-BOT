@@ -55,7 +55,7 @@ class JiraClient:
         url: Optional[str] = None,
         email: Optional[str] = None,
         api_token: Optional[str] = None,
-        timeout: int = 30
+        timeout: Optional[int] = None
     ):
         """
         初始化 Jira 客户端

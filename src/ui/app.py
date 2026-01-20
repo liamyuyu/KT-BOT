@@ -14,13 +14,17 @@ import gradio as gr
 from src.ui.pages.chat_page import create_chat_page
 from src.config import settings
 
+# 创建日志目录
+logs_dir = project_root / "logs"
+logs_dir.mkdir(exist_ok=True)
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("logs/gradio_ui.log")
+        logging.FileHandler(logs_dir / "gradio_ui.log")
     ]
 )
 

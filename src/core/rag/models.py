@@ -234,6 +234,7 @@ class RerankerConfig(BaseModel):
     timeout_seconds: float = Field(30.0, description="超时时间（秒）", ge=1.0, le=300.0)
 
     model_config = ConfigDict(
+        protected_namespaces=(),
         json_schema_extra={
             "example": {
                 "model_name": "BAAI/bge-reranker-large",

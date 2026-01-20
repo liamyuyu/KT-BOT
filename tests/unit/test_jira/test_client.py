@@ -308,6 +308,7 @@ class TestJiraClientFetchIssues:
         issue_type = Mock()
         issue_type.id = "1"
         issue_type.name = "Story"
+        issue_type.iconUrl = "https://test.atlassian.net/images/icons/issuetypes/story.png"
         fields.issuetype = issue_type
 
         # Mock status
@@ -322,15 +323,24 @@ class TestJiraClientFetchIssues:
         project.id = "10000"
         project.key = key.split("-")[0]
         project.name = "Test Project"
+        project.description = None
+        project.avatarUrls = {"48x48": "https://test.atlassian.net/avatar.png"}
         fields.project = project
 
-        # Mock comment (remove it if not needed for basic tests)
-        # comment = Mock()
-        # comment.comments = []
-        # fields.comment = comment
+        # Set optional fields to None to avoid Mock objects
+        fields.priority = None
+        fields.reporter = None
+        fields.assignee = None
+        fields.resolutiondate = None
+        fields.duedate = None
 
-        # Mock attachment (remove it if not needed)
-        # fields.attachment = []
+        # Mock comment with empty list
+        comment = Mock()
+        comment.comments = []
+        fields.comment = comment
+
+        # Mock attachment as empty list
+        fields.attachment = []
 
         mock_issue.fields = fields
         return mock_issue

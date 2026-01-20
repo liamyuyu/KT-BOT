@@ -20,7 +20,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     """对话请求模型"""
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     message: str = Field(..., min_length=1, description="用户消息")
     session_id: Optional[str] = Field(None, description="会话 ID（首次为 None）")
@@ -113,7 +113,7 @@ class StreamChunk(BaseModel):
 
 class ChatHistory(BaseModel):
     """对话历史"""
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     session_id: str = Field(..., description="会话 ID")
     messages: List[ChatMessage] = Field(default_factory=list, description="消息列表")
