@@ -52,10 +52,7 @@ class ChatService:
                     vector_retriever=self.vector_retriever,
                     bm25_retriever=self.bm25_retriever,
                     retrieval_config=RetrievalConfig(top_k=10),
-                    hybrid_config=HybridConfig(fusion_method="rrf"),
-                    enable_cache=True,
-                    cache_size=128,
-                    retrieval_timeout=10.0
+                    hybrid_config=HybridConfig(fusion_method="rrf")
                 )
             except Exception as e:
                 logger.warning(f"Failed to initialize HybridRetriever: {e}")

@@ -1520,21 +1520,29 @@ docker build -t ktbot:latest . 2>&1 | tee build.log
 
 ## 路线图
 
-### ✅ 已完成（v0.1）
+### ✅ 已完成（v0.1 + Sprint 2）
 
-- [x] 基础 Ollama 模型集成
-- [x] Jira 数据同步
-- [x] Confluence 数据同步
-- [x] 基础 RAG 检索
-- [x] 简单对话界面
+**v0.1.0 基础功能**:
+- [x] Ollama 模型集成（qwen2.5:7b, bge-large-zh）
+- [x] Jira/Confluence 数据同步
+- [x] 基础 RAG 检索（向量检索）
+- [x] Web UI 对话界面（Gradio + FastAPI）
 
-### 🚧 进行中（v0.2）
+**Sprint 2 增强功能** ⭐ 新增:
+- [x] 混合检索系统（向量 + BM25 + RRF）
+- [x] Cross-Encoder 重排序（bge-reranker-large）
+- [x] 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
+- [x] 文档管理系统（后端 API + Gradio UI）
+- [x] 测试覆盖率提升（60.58% 整体，核心模块 85%+）
 
-- [ ] Web UI 界面完善
-- [ ] 混合检索优化
-- [ ] 重排序系统
-- [ ] 引用溯源功能
-- [ ] Docker 部署支持
+### 🚧 进行中（v0.2 - Sprint 3-4）
+
+- [ ] 引用溯源系统（Sprint 3）
+- [ ] Embedding 模型管理（Sprint 3）
+- [ ] 模型配置文件系统（Sprint 3）
+- [ ] 本地文档上传（Sprint 3）
+- [ ] 数据同步调度器（Sprint 4）
+- [ ] Docker 部署完善（Sprint 4）
 
 ### 📋 计划中（v0.3）
 
@@ -1708,19 +1716,27 @@ Requirements.md → SPRINTS.md → 实际开发与迭代 → CHANGELOG.md
 
 详细的版本变更历史请查看 [CHANGELOG.md](./CHANGELOG.md)
 
-### 最新版本: v0.1.0 (2025-12-30)
+### 最新进展: Sprint 2 完成 (2026-01-20)
 
-**新增功能**:
-- ✨ Ollama 本地模型集成
-- ✨ Jira/Confluence 企业工具集成
-- ✨ 基础 RAG 检索引擎（ChromaDB）
-- ✨ Gradio Web UI 对话界面
-- ✨ Docker 一键部署
+**Sprint 2 交付** (100% 完成):
+- ✅ 混合检索系统（向量 + BM25 + RRF 融合）
+- ✅ Cross-Encoder 重排序（bge-reranker-large）
+- ✅ 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
+- ✅ 文档管理系统（7个API端点 + Gradio UI）
+- ✅ 测试覆盖率大幅提升（Jira: 97.28%, Confluence: 91.37%）
+- ✅ 60+ 新增测试用例，~4,000行生产代码
 
-**已知问题**:
-- ⚠️ UI 界面功能有限（v0.2.0 将增强）
-- ⚠️ 仅支持向量检索（v0.2.0 将支持混合检索）
-- ⚠️ 无重排序功能（v0.2.0 将添加）
+**最新版本: v0.1.0** (2025-12-30)
+- Ollama 本地模型集成
+- Jira/Confluence 企业工具集成
+- 基础 RAG 检索引擎（ChromaDB）
+- Gradio Web UI 对话界面
+
+**v0.2.0 进展** (Sprint 2-4):
+- ✅ 混合检索和重排序（已完成）
+- ✅ 文档管理（已完成）
+- ⏳ 引用溯源（Sprint 3 计划）
+- ⏳ 模型管理完善（Sprint 3 计划）
 
 ### 未来版本规划
 

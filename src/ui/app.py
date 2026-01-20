@@ -12,6 +12,7 @@ sys.path.insert(0, str(project_root))
 import gradio as gr
 
 from src.ui.pages.chat_page import create_chat_page
+from src.ui.pages.document_page import create_document_page
 from src.config import settings
 
 # 创建日志目录
@@ -35,8 +36,16 @@ def create_app() -> gr.Blocks:
     """创建 Gradio 应用"""
     logger.info("Creating Gradio application...")
 
-    # 创建主界面
-    demo = create_chat_page()
+    # 创建各个页面
+    chat_page = create_chat_page()
+    document_page = create_document_page()
+
+    # 使用 TabbedInterface 组合多个页面
+    demo = gr.TabbedInterface(
+        [chat_page, document_page],
+        ["💬 对话", "📚 文档管理"],
+        title="KT-BOT - Enterprise Knowledge Bot"
+    )
 
     logger.info("Gradio application created successfully")
     return demo

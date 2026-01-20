@@ -12,9 +12,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [未发布]
 
-> 对应 **Sprint 2** 进行中的任务，详见 [SPRINTS.md](./SPRINTS.md)
+> 对应 **Sprint 3** 计划中的任务，详见 [SPRINTS.md](./SPRINTS.md)
 
 ### Added / 新增
+
+#### 2026-01-20 - Sprint 2 Complete: Document Management & Full RAG Pipeline ✅
+
+**Sprint 2 全部完成** (29/29 故事点)
+- ✅ **完整 RAG Pipeline 集成** (Task 2.6)
+  - Hybrid Retrieval → Cross-Encoder Reranking → Top-K results
+  - ChatService 完全集成 HybridRetriever 和 CrossEncoderReranker
+  - 支持动态配置（retrieval_method, fusion_method, enable_reranking）
+  - 重排序缓存机制（LRU缓存，TTL 10分钟）
+  - 批量重排序优化
+  - 端到端测试脚本（test_rag_pipeline_with_reranking.py）
+  - 性能对比测试工具（test_reranking_performance.py）
+
+- ✅ **文档管理系统** (Task 2.7, 2.8)
+  - **后端 API** (7 个完整端点)
+    - POST /api/v1/documents/upload - 文档上传（自动分块、embedding、索引）
+    - GET /api/v1/documents/list - 文档列表（筛选、分页）
+    - POST /api/v1/documents/query - 文档查询
+    - GET /api/v1/documents/{id} - 文档详情
+    - DELETE /api/v1/documents/{id} - 文档删除
+    - PUT /api/v1/documents/{id} - 文档更新
+    - GET /api/v1/documents/stats/summary - 统计信息
+
+  - **数据模型** (src/api/schemas/document.py)
+    - DocumentUploadRequest, DocumentMetadata, DocumentDetail
+    - DocumentQueryRequest, DocumentListResponse
+    - DocumentUploadResponse, DeleteResponse, StatsResponse
+
+  - **业务逻辑** (src/api/services/document_service.py, ~531 行)
+    - DocumentService 完整实现
+    - 自动分块（TextChunker: 800 字符，150 重叠）
+    - 自动 embedding 生成（bge-large-zh）
+    - ChromaDB 元数据存储
+    - 支持多来源类型（local, jira, confluence）
+    - 标签系统和搜索功能
+
+  - **Gradio UI** (src/ui/pages/document_page.py, ~295 行)
+    - 文档列表表格显示（ID、标题、来源、分块数、标签、时间）
+    - 来源类型筛选（全部、Local、Jira、Confluence）
+    - 文档上传表单（标题、内容、标签）
+    - 删除功能
+    - 统计信息显示（总文档数、总分块数、按来源/标签统计）
+    - 自动刷新机制
+
+  - **主界面集成** (src/ui/app.py)
+    - 使用 gr.TabbedInterface 整合对话和文档管理
+    - 两个 Tab：💬 对话 | 📚 文档管理
 
 #### 2026-01-20 - Test Coverage Improvement & Bug Fixes ✅
 
@@ -661,7 +708,16 @@ python src/main.py
 
 ### Planned / 计划中
 
-#### v0.1.1 - ✅ Sprint 1-3 阶段完成（计划于 Sprint 3: 2026-01-20 ~ 2026-02-02）
+#### v0.2.0 - Enhanced Retrieval & Document Management (Sprint 2 已完成 100%, Sprint 3-4 进行中)
+
+**已完成** (Sprint 2):
+- ✅ 混合检索（向量 + BM25）
+- ✅ Cross-Encoder 重排序
+- ✅ 完整 RAG Pipeline
+- ✅ 文档管理系统（后端 + UI）
+- ✅ 测试覆盖率大幅提升
+
+**计划中** (Sprint 3: 2026-01-31 ~ 2026-02-13):
 
 **模型管理增强**
 - [ ] Embedding 模型独立管理（Story 1.4）- 支持多种 Embedding 模型，独立配置，多语言支持

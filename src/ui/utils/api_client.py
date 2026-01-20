@@ -259,6 +259,135 @@ class ChatAPIClient:
             # 返回默认模型列表
             return ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"]
 
+    # ============ 文档管理 API ============
+
+    async def upload_document(
+        self,
+        title: str,
+        content: str,
+        source_type: str = "local",
+        source_id: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        上传文档
+
+        Args:
+            title: 文档标题
+            content: 文档内容
+            source_type: 来源类型
+            source_id: 来源ID
+            tags: 标签列表
+            metadata: 额外元数据
+
+        Returns:
+            上传响应数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload"
+
+        request_data = {
+            "title": title,
+            "content": content,
+            "source_type": source_type,
+            "source_id": source_id,
+            "tags": tags or [],
+            "metadata": metadata or {}
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json=request_data)
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Upload document failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Upload document failed: {e}")
+            return None
+
+    async def list_documents(
+        self,
+        source_type: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取文档列表
+
+        Args:
+            source_type: 来源类型筛选
+            limit: 返回数量限制
+            offset: 偏移量
+
+        Returns:
+            文档列表响应
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/list"
+
+        params = {
+            "limit": limit,
+            "offset": offset
+        }
+        if source_type:
+            params["source_type"] = source_type
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"List documents failed: {e}")
+            return None
+
+    async def delete_document(self, document_id: str) -> Optional[Dict[str, Any]]:
+        """
+        删除文档
+
+        Args:
+            document_id: 文档ID
+
+        Returns:
+            删除响应数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/{document_id}"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.delete(url)
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Delete document failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Delete document failed: {e}")
+            return None
+
+    async def get_document_stats(self) -> Optional[Dict[str, Any]]:
+        """
+        获取文档统计信息
+
+        Returns:
+            统计响应数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/stats/summary"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get document stats failed: {e}")
+            return None
+
 
 # 全局客户端实例
 _client: Optional[ChatAPIClient] = None

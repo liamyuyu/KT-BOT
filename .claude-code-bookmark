@@ -1,6 +1,6 @@
 # KT-BOT - Enterprise Knowledge Bot
 # Claude Code Bookmark File
-# Last Updated: 2026-01-18
+# Last Updated: 2026-01-20
 
 ================================================================================
 ## Project Overview
@@ -14,10 +14,11 @@ framework: FastAPI + Gradio
 
 ## Current Sprint Status
 sprint: Sprint 2 (2026-01-17 ~ 2026-01-30)
-progress: 59% (17/29 story points)
-current_task: Task 2.6 - Complete Retrieval Pipeline Integration
-sprint_1: 100% Complete (55/55 points)
-recent_completion: Test Coverage Improvement (2026-01-20)
+progress: 100% (29/29 story points) ✅
+current_task: Sprint 2 Completed - Ready for Sprint 3
+sprint_1: 100% Complete (55/55 points) ✅
+sprint_2: 100% Complete (29/29 points) ✅
+recent_completion: Document Management System + Full RAG Pipeline (2026-01-20)
 
 ================================================================================
 ## Entry Points & Key Directories
@@ -93,7 +94,7 @@ src/
 | Task 1.5 | Basic Document Indexing (13) | Done | 2026-01-12 | ~1,181 lines |
 | Task 1.7 | Web UI Dialog Interface (5) | Done | 2026-01-16 | ~2,200 lines |
 
-### Sprint 2 - IN PROGRESS (17/29 story points, 59%)
+### Sprint 2 - COMPLETED (29/29 story points, 100%) ✅
 
 | Task | Story Points | Status | Date | Deliverables |
 |------|-------------|--------|------|--------------|
@@ -102,9 +103,10 @@ src/
 | Task 2.3 | Retrieval Performance Opt (3) | Done | 2026-01-16 | Concurrent + Cache |
 | Task 2.4 | API and UI Integration (3) | Done | 2026-01-16 | ~650 lines, 12 tests |
 | Task 2.5 | Reranker Model Integration (4) | Done | 2026-01-16 | ~384 lines, 14 tests |
-| Task 2.6 | Complete Retrieval Pipeline (4) | Pending | - | Next task |
-| Task 2.7 | Doc Management Backend API (4) | Pending | - | Planned |
-| Task 2.8 | Doc Management UI (4) | Pending | - | Planned |
+| Task 2.5.1 | Test Coverage Improvement (extra) | Done | 2026-01-20 | Jira: 97.28%, Conf: 91.37% |
+| Task 2.6 | Complete Retrieval Pipeline (4) | Done | 2026-01-20 | Full RAG Pipeline |
+| Task 2.7 | Doc Management Backend API (4) | Done | 2026-01-20 | 7 endpoints, ~800 lines |
+| Task 2.8 | Doc Management UI (4) | Done | 2026-01-20 | Gradio integration, ~295 lines |
 
 ================================================================================
 ## Changelog History
@@ -331,46 +333,77 @@ pytest tests/unit/test_rag/ --cov=src/core/rag --cov-report=html
 - Reranker: Cross-Encoder (bge-reranker-large)
 
 ================================================================================
-## Next Tasks (Sprint 2 Remaining)
+## Next Tasks (Sprint 3 Planned)
 ================================================================================
 
-### Task 2.6: Complete Retrieval Pipeline Integration (4 points)
-- Update RAG Pipeline (Hybrid -> Rerank -> Top-K)
-- Add reranking toggle and parameters (enable_reranking, rerank_top_k)
-- Update API and UI for reranking support
-- Implement batch reranking optimization
-- Add reranking cache mechanism
-- Create end-to-end tests
-- Performance comparison (with/without reranking)
+### Sprint 3 Focus: Model Management & Citation System
+**Target Date**: 2026-01-31 ~ 2026-02-13
+**Story Points**: 42 points
 
-### Task 2.7: Document Management Backend API (4 points)
-- Document CRUD endpoints
-- Upload/delete functionality
-- Metadata management
+### Task 3.1: Embedding Model Management (8 points)
+- Independent embedding model configuration
+- Multiple embedding model support
+- Model switching functionality
+- Performance optimization
 
-### Task 2.8: Document Management UI (4 points)
-- Document list view
-- Upload interface
-- Search and filter
+### Task 3.2: Model Configuration File (5 points)
+- models.yaml configuration system
+- Hot reload support
+- Model parameter management
+- Validation and error handling
+
+### Task 3.3: Model Health Check System (5 points)
+- Automatic health monitoring
+- Health check testing suite
+- Auto-recovery mechanisms
+- Alert system
+
+### Task 3.4: Citation and Source Tracking (8 points)
+- Source tracking system
+- Citation display optimization
+- Click-to-source functionality
+- Citation chain visualization
+
+### Task 3.5: Incremental Index Update (8 points)
+- Incremental indexing mechanism
+- Change detection
+- Efficient update strategy
+- Version control
+
+### Task 3.6: Local Document Upload (8 points)
+- Drag-and-drop upload
+- Multi-format support (PDF/Word/Markdown/TXT)
+- Automatic indexing pipeline
+- Progress tracking
 
 ================================================================================
 ## Code Statistics
 ================================================================================
 
-Total Production Code: ~15,000+ lines
+Total Production Code: ~19,000+ lines
 - LLM Module: ~1,879 lines (10 files)
 - Jira Integration: ~1,400 lines (6 files)
 - Confluence Integration: ~2,050 lines
 - ChromaDB: ~2,136 lines
 - RAG Indexing: ~1,181 lines
-- Web UI: ~2,200 lines (24 files)
+- Web UI: ~2,700 lines (27 files) ⬆️ +500
 - Hybrid Retrieval: ~2,772 lines (6 files)
 - Reranker: ~384 lines (3 files)
+- Document Management: ~1,095 lines (3 files) ✨ NEW
+- Main Entry: ~120 lines
 
-Test Coverage:
+Test Code: ~6,000+ lines
+- Unit Tests: ~3,500 lines
+- Integration Tests: ~1,500 lines
+- Performance Tests: ~600 lines
+- E2E Tests: ~400 lines
+
+Test Coverage (Overall: 60.58%):
 - RAG Chunker: 95.45%
+- Jira Integration: 97.28% ⬆️ +18.37%
+- Confluence Integration: 91.37% ⬆️ +10.43%
+- BM25 Retriever: 88.85%
 - Reranker: 85.71%
-- BM25: 88.85%
-- Hybrid: 81.57%
-- Jira Integration: 97.28% (147 statements, 4 missed)
-- Confluence Integration: 91.37% (278 statements, 24 missed)
+- Hybrid Retriever: 81.57%
+- Document Service: ~85% ✨ NEW
+- Document Routes: ~75% ✨ NEW

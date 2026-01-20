@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from src.config import settings
 from src.core.llm.manager import get_llm_manager
 from .routes import chat_router, health_router, models_router
+from .routes.documents import router as documents_router
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ def create_fastapi_app() -> FastAPI:
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(chat_router, prefix="/api/v1")
     app.include_router(models_router, prefix="/api/v1")
+    app.include_router(documents_router, prefix="/api/v1")
 
     # 全局异常处理
     @app.exception_handler(Exception)
