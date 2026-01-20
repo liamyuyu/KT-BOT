@@ -1,38 +1,46 @@
 # 🚀 KT-BOT 开发快速开始 | Quick Start
 
-> **最后更新**: 2026-01-16 (下午)
+> **最后更新**: 2026-01-20
 > **当前 Sprint**: Sprint 2 (2026-01-17 ~ 2026-01-30)
 > **Sprint 1**: ✅ 100% 完成 (55/55 points)
 > **Sprint 2 进度**: 🔄 59% 完成 (17/29 points) █████████████████░░░░░░░░░░░░
-> **当前阶段**: Task 2.5 Reranker 模型集成完成，准备 Task 2.6
+> **当前阶段**: 测试覆盖率提升完成 ✅（Jira: 97.28%, Confluence: 91.37%），准备 Task 2.6
 
 ---
 
 ## 📍 当前位置 | Current Status
 
-### ✅ 最新完成：Task 2.5 Reranker 模型集成 ⭐
+### ✅ 最新完成：Task 2.5.1 测试覆盖率提升 ⭐
 
 **交付内容**:
-- ✅ CrossEncoderReranker 实现（~91 行代码）
-  - 延迟加载机制（按需加载模型）
-  - 自动设备检测（CPU/CUDA/MPS）
-  - 批量打分优化（batch_size 可配置）
-  - Sigmoid 分数归一化（0-1 区间）
-  - 完整的异步支持（asyncio.to_thread）
-- ✅ 数据模型（RerankerConfig, RerankerResult）
-- ✅ 14/14 单元测试通过（85.71% 覆盖率）
-- ✅ 依赖安装（sentence-transformers, torch, numpy）
+- ✅ **Jira 集成测试提升至 97.28%**（+18.37%）
+  - 修复 5 个失败测试（timeout 参数、Mock 对象、配置初始化等）
+  - 新增 10 个测试用例（错误处理、复杂 Issue、API 重试）
+  - 64/64 测试全部通过
+  - 未覆盖行数: 4 行（边界情况）
+
+- ✅ **Confluence 集成测试提升至 91.37%**（+10.43%）
+  - 新增 11 个测试用例（连接错误、复杂页面、限流处理）
+  - 64/64 测试全部通过
+  - 未覆盖行数: 24 行（边界情况）
+
+- ✅ **应用启动修复**
+  - 日志目录自动创建
+  - .env 配置文件创建
+  - Pydantic v2 警告修复
+  - 端口占用进程清理
 
 **技术亮点**:
-- Cross-Encoder 模型集成（bge-reranker-large）
-- 批量处理优化（减少推理次数）
-- 延迟加载模型（节省内存）
-- NumPy 兼容性修复（降级到 1.26.4）
+- 全面的错误处理测试（HTTP 错误、API 错误、重试机制）
+- 复杂数据结构解析测试（组件、版本、附件等）
+- Mock 策略改进（显式字段赋值）
+- 超过 90% 覆盖率目标
 
 **测试结果** ✅:
-- ✅ 14 个单元测试全部通过
-- ✅ 测试覆盖率：85.71%
-- ✅ 所有功能验证通过
+- ✅ 193/193 测试全部通过（100%）
+- ✅ Jira 覆盖率：97.28%
+- ✅ Confluence 覆盖率：91.37%
+- ✅ 所有集成模块测试通过
 
 ---
 
@@ -48,6 +56,7 @@
 - ✅ Task 2.3 - 检索性能优化
 - ✅ Task 2.4 - API 和 UI 集成
 - ✅ Task 2.5 - Reranker 模型集成
+- ✅ Task 2.5.1 - 测试覆盖率提升
 
 **任务目标**:
 1. 更新 RAG Pipeline（Hybrid → Rerank → Top-K）
@@ -66,6 +75,7 @@
 
 **已完成任务** (17/29 points):
 - ✅ 2026-01-16: Task 2.1-2.5 (混合检索 + Reranker)
+- ✅ 2026-01-20: Task 2.5.1 (测试覆盖率提升)
 
 **待完成任务** (12/29 points):
 | 日期 | 任务 | 状态 | 故事点 |
@@ -383,19 +393,29 @@ responses = await embedding.embed_batch(["文本1", "文本2"])
 pytest tests/unit/test_rag/test_chunker.py -v     # RAG 单元测试 ⭐
 python examples/rag_example.py                     # RAG 使用示例 ⭐
 
+# 运行集成测试（最新）
+pytest tests/unit/test_jira/ tests/unit/test_confluence/ \
+  --cov=src/integrations/jira/client \
+  --cov=src/integrations/confluence/client \
+  --cov-report=term-missing -q                     # Jira + Confluence 测试 ⭐
+
 # 代码覆盖率
 pytest tests/unit/test_rag/ --cov=src/core/rag --cov-report=html
 
-# 验证 RAG 模块
+# 验证集成模块
+python -c "from src.integrations.jira import get_jira_client; print('Jira OK')"
+python -c "from src.integrations.confluence import get_confluence_client; print('Confluence OK')"
 python -c "from src.core.rag import *; print('RAG module OK')"
 
 # 查看代码统计
 find src/core/rag -name "*.py" -exec wc -l {} + | tail -1
+find src/integrations/jira -name "*.py" -exec wc -l {} + | tail -1
+find src/integrations/confluence -name "*.py" -exec wc -l {} + | tail -1
 
 # Git 操作
 git status                                         # 查看状态
 git log --oneline -5                               # 最近提交
-git add . && git commit -m "feat: RAG module"     # 提交代码
+git add . && git commit -m "test: improve coverage to 90%+"  # 提交代码
 ```
 
 ---

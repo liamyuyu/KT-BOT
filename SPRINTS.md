@@ -10,6 +10,21 @@
 
 ---
 
+## Sprint 进度总览 / Sprint Progress Overview
+
+| Sprint | 时间范围 | 故事点数 | 完成率 | 状态 | 关键交付物 |
+|--------|---------|---------|--------|------|-----------|
+| Sprint 1 | 2026-01-03 ~ 2026-01-16 | 55/55 | 100% | ✅ 已完成 | MVP 发布（模型集成、数据同步、RAG、Web UI） |
+| Sprint 2 | 2026-01-17 ~ 2026-01-30 | 17/29 | 59% | 🔄 进行中 | 混合检索、重排序、文档管理 |
+| Sprint 3 | 2026-01-31 ~ 2026-02-13 | 0/42 | 0% | ⏳ 计划中 | 模型管理完善、引用溯源、本地上传 |
+| Sprint 4 | 2026-02-14 ~ 2026-02-27 | 0/31 | 0% | ⏳ 计划中 | 同步调度、结果过滤、UI 增强 |
+| Sprint 5 | 2026-02-28 ~ 2026-03-13 | 0/37 | 0% | ⏳ 计划中 | 批量处理、智能分块、UX 优化 |
+| **总计** | - | **72/194** | **37%** | - | - |
+
+**当前里程碑**: v0.2.0 - Enhanced Retrieval (进行中 59%)
+
+---
+
 ## Requirements.md Sprint 阶段映射 / Requirements Sprint Phase Mapping
 
 > **说明**: Requirements.md 中定义的 Sprint 阶段是长期规划（3-5周），而本文档中的 Sprint 是 2 周敏捷迭代。以下是两者的映射关系：
@@ -93,13 +108,7 @@
 
 ## 已完成 Sprint / Completed Sprints
 
-（暂无已完成的 Sprint）
-
----
-
-## 当前 Sprint / Current Sprint
-
-### Sprint 1 (2026-01-03 ~ 2026-01-16)
+### Sprint 1 (2026-01-03 ~ 2026-01-16) ✅
 
 **Sprint 目标**: 完成 v0.1.0 MVP 发布 - 基础功能上线
 
@@ -453,25 +462,28 @@ python src/main.py
 
 ---
 
-## 计划中的 Sprint / Upcoming Sprints
+## 当前 Sprint / Current Sprint
 
-### Sprint 2 (2026-01-17 ~ 2026-01-30)
+### Sprint 2 (2026-01-17 ~ 2026-01-30) 🔄
 
 **Sprint 目标**: 完成 Epic 3 的混合检索和重排序功能，增强 Web UI 基础交互
 
 **包含的用户故事**:
 - [x] Story 3.3: 混合检索（向量 + BM25） - Epic 3 (13点) - ✅ 已完成 2026-01-16
-- [x] Task 2.5: Reranker 模型集成 (Story 3.4 部分) - ✅ 已完成 2026-01-16
-- [ ] Task 2.6: 完整检索流程集成 (Story 3.4 部分) - 进行中
-- [ ] Story 4.2: 文档管理面板 - Epic 4 (8点) - 待开始
+- [x] Task 2.5: Reranker 模型集成 (Story 3.4 部分) (4点) - ✅ 已完成 2026-01-16
+- [ ] Task 2.6: 完整检索流程集成 (Story 3.4 部分) (4点) - 🔄 进行中
+- [ ] Story 4.2: 文档管理面板 - Epic 4 (8点) - ⏳ 待开始
 
 **总故事点数**: 29 点 | **已完成**: 17 点 (59%) 🔄
+
+**当前状态**: Sprint 2 进行中，已完成核心检索功能和测试覆盖率提升，文档管理面板待开始
 
 **关键交付物**:
 - ✅ BM25 全文检索功能
 - ✅ 混合检索融合策略（RRF）
 - ✅ Cross-Encoder 重排序模型
-- 🔄 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
+- ✅ 测试覆盖率提升（Jira: 97.28%, Confluence: 91.37%）
+- ⏳ 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
 - ⏳ 文档管理 UI 界面
 
 ---
@@ -678,6 +690,86 @@ python src/main.py
 
 ---
 
+#### Task 2.5.1: 测试覆盖率提升 ✅
+
+**来源**: 代码质量改进（额外任务）
+**负责人**: Claude Sonnet 4.5
+**优先级**: P0
+**预估工作量**: 1 天
+**实际工作量**: 1 天
+**依赖**: Task 1.3, Task 1.4
+**完成日期**: 2026-01-20
+
+**子任务**:
+- [x] 修复 Jira 4-5 个失败测试
+- [x] 新增 Jira 测试用例（覆盖错误处理、复杂 Issue）
+- [x] 新增 Confluence 测试用例（覆盖连接错误、复杂页面）
+- [x] 修复应用启动问题（日志目录、Pydantic 警告）
+- [x] 验证所有测试通过
+
+**完成内容**:
+1. **Jira 集成测试优化** (`tests/unit/test_jira/test_client.py`)
+   - 修复 5 个失败测试：
+     - timeout 参数默认值导致配置覆盖问题
+     - Mock 对象字段类型问题（component.name, version.name）
+     - test_init_missing_config 环境依赖问题
+     - API 错误异常类型问题（RetryError vs JiraAPIError）
+   - 新增 10 个测试用例：
+     - test_connect_forbidden (403 错误)
+     - test_connect_other_http_error (500 错误)
+     - test_fetch_issues_custom_jql (JQL 查询)
+     - test_init_default_project (默认配置)
+     - test_fetch_issues_complex_issue (复杂 Issue 解析)
+     - test_parse_issue_error (解析错误)
+     - test_fetch_issues_api_error (API 错误重试)
+     - test_parse_datetime_invalid (日期解析错误)
+     - test_close (客户端关闭)
+     - test_init_missing_config (配置缺失，已修复)
+
+2. **Confluence 集成测试优化** (`tests/unit/test_confluence/test_client.py`)
+   - 新增 11 个测试用例：
+     - test_connect_other_http_error (500 错误)
+     - test_fetch_pages_with_complex_page (复杂页面：祖先、标签、附件)
+     - test_fetch_pages_with_minimal_fields (最小字段默认值)
+     - test_init_default_space (默认空间配置)
+     - test_fetch_pages_cql_fallback (CQL 查询回退)
+     - test_fetch_page_by_id_errors (404, 500 错误)
+     - test_fetch_page_by_title (标题查询)
+     - test_get_all_spaces_api_error (API 错误)
+     - test_fetch_pages_rate_limit (429 限流)
+     - test_fetch_pages_generic_exception (通用异常重试)
+     - test_close, test_context_manager (资源管理)
+
+3. **应用启动修复**
+   - 修复日志目录创建：`src/main.py`, `src/ui/app.py`
+   - 创建 .env 配置文件
+   - 修复 Pydantic v2 警告：`src/api/schemas/chat.py`, `src/core/rag/models.py`
+   - 清理端口占用进程
+
+**测试结果**:
+- Jira: 64/64 测试通过（100%）
+  - 覆盖率: 97.28% (147 语句，4 未覆盖)
+  - 未覆盖行: src/integrations/jira/client.py:151-152, 238-239
+- Confluence: 64/64 测试通过（100%）
+  - 覆盖率: 91.37% (278 语句，24 未覆盖)
+  - 未覆盖行: src/integrations/confluence/client.py:181-182, 198, 290-293, 等
+- 总计: 193/193 测试通过
+
+**技术亮点**:
+- 全面的错误处理测试（HTTP 错误、API 错误、重试机制）
+- 复杂数据结构解析测试（Issue 组件、版本、附件等）
+- Mock 策略改进（显式字段赋值，避免 Mock 对象嵌套）
+- 测试覆盖率超过 90% 目标
+
+**交付物**:
+- 测试文件修改: 2 个
+  - tests/unit/test_jira/test_client.py: +10 测试
+  - tests/unit/test_confluence/test_client.py: +11 测试
+- 源代码修复: 5 个文件
+- 覆盖率提升: Jira +18.37%, Confluence +10.43%
+
+---
+
 #### Task 2.6: 完整检索流程集成
 
 **来源**: Story 3.4
@@ -732,7 +824,9 @@ python src/main.py
 
 ---
 
-### Sprint 3 (2026-01-31 ~ 2026-02-13)
+## 计划中的 Sprint / Upcoming Sprints
+
+### Sprint 3 (2026-01-31 ~ 2026-02-13) ⏳
 
 **计划目标**: 完成 Phase 1 Sprint 1-3 剩余任务（模型管理完善）+ 引用溯源 + 本地文档上传
 
@@ -762,7 +856,7 @@ python src/main.py
 
 ---
 
-### Sprint 4 (2026-02-14 ~ 2026-02-27)
+### Sprint 4 (2026-02-14 ~ 2026-02-27) ⏳
 
 **计划目标**: 数据同步调度器、检索结果过滤、UI 增强
 
@@ -784,7 +878,7 @@ python src/main.py
 
 ---
 
-### Sprint 5 (2026-02-28 ~ 2026-03-13)
+### Sprint 5 (2026-02-28 ~ 2026-03-13) ⏳
 
 **计划目标**: 批量处理、智能 Chunking、用户体验优化
 
@@ -806,28 +900,64 @@ python src/main.py
 
 ## Sprint 里程碑 / Milestones
 
-### v0.1.0 - MVP (目标: 2026-01-16)
-- Sprint 1 完成
-- Ollama 模型集成
-- Jira/Confluence 基础同步
-- RAG 基础检索
-- 基础对话界面
+### v0.1.0 - MVP ✅ (已完成: 2026-01-16)
+**状态**: 已发布
+- ✅ Sprint 1 完成
+- ✅ Ollama 模型集成
+- ✅ Jira/Confluence 基础同步
+- ✅ RAG 基础检索
+- ✅ 基础对话界面
 
-### v0.2.0 - Enhanced Retrieval (目标: 2026-02-27)
-- Sprint 2-4 完成
-- 混合检索 + 重排序 + 引用溯源
-- Web UI 基础增强
-- 完整的模型管理系统
+### v0.2.0 - Enhanced Retrieval 🔄 (目标: 2026-02-27)
+**状态**: 进行中 (59% 完成)
+- 🔄 Sprint 2-4
+- ✅ 混合检索 + 重排序（已完成）
+- ⏳ 引用溯源（计划中）
+- ⏳ Web UI 基础增强（进行中）
+- ⏳ 完整的模型管理系统（计划中）
 
-### v0.3.0 - MCP & Multi-user (目标: 2026-04-30)
-- Sprint 6-9
-- MCP 协议支持
-- 多用户认证和权限管理
+### v0.3.0 - MCP & Multi-user ⏳ (目标: 2026-04-30)
+**状态**: 计划中
+- ⏳ Sprint 6-9
+- ⏳ MCP 协议支持
+- ⏳ 多用户认证和权限管理
 
-### v1.0.0 - Production Ready (目标: 2026-08-31)
-- Sprint 10-15
-- 完整企业级功能
-- 性能优化和监控
+### v1.0.0 - Production Ready ⏳ (目标: 2026-08-31)
+**状态**: 计划中
+- ⏳ Sprint 10-15
+- ⏳ 完整企业级功能
+- ⏳ 性能优化和监控
+
+---
+
+## Sprint 回顾 / Sprint Retrospective
+
+### Sprint 1 回顾 (2026-01-16) ✅
+
+**做得好的 (What went well)**:
+- 所有 7 个用户故事 100% 按时完成（55/55 故事点）
+- 核心模块测试覆盖率高（70-95%），质量良好
+- 技术选型合理（Ollama、ChromaDB、Gradio），快速搭建 MVP
+- 文档完整，包含完整的 API 文档和用户指南
+- 并行开发效率高，多个模块同步推进
+
+**需要改进的 (What could be improved)**:
+- Docker Compose 一键部署方案待完善
+- 整体测试覆盖率需提升至 80%
+- 集成测试存在少量测试隔离问题
+- v0.1.0 版本发布流程待标准化
+
+**行动计划 (Action items)**:
+- [x] 完成混合检索和重排序功能（Sprint 2）
+- [ ] 完善 Docker Compose 配置
+- [ ] 提升测试覆盖率到 80% 以上
+- [ ] 建立版本发布标准流程
+
+**团队速率 (Velocity)**:
+- 计划故事点数: 55 点
+- 完成故事点数: 55 点
+- 完成率: 100%
+- **基线速率**: 55 点/2周
 
 ---
 

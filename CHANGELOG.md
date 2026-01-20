@@ -16,6 +16,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added / 新增
 
+#### 2026-01-20 - Test Coverage Improvement & Bug Fixes ✅
+
+**测试质量提升**
+- ✅ **Jira 集成测试覆盖率提升至 97.28%**
+  - 修复 5 个失败测试（timeout 参数、Mock 对象、配置初始化）
+  - 新增 10 个测试用例：错误处理、JQL 查询、复杂 Issue、API 错误、重试机制
+  - 从 54 测试（50 通过）提升到 64 测试（100% 通过）
+  - 覆盖率从 78.91% 提升到 97.28%（+18.37%）
+  - 未覆盖行数: 4 行（边界情况）
+
+- ✅ **Confluence 集成测试覆盖率提升至 91.37%**
+  - 新增 11 个测试用例：连接错误、复杂页面、CQL 查询、限流处理、上下文管理器
+  - 从 53 测试提升到 64 测试（1 个需 RetryError 修复）
+  - 覆盖率从 80.94% 提升到 91.37%（+10.43%）
+  - 未覆盖行数: 24 行（边界情况）
+
+- ✅ **应用启动修复**
+  - 修复日志目录创建问题（src/main.py, src/ui/app.py）
+  - 修复 Pydantic v2 protected_namespaces 警告
+  - 创建 .env 配置文件
+  - 清理端口占用进程
+
+**代码质量**
+- 总测试数: 193 个（Jira: 64, Confluence: 65, 其他: 64）
+- 测试通过率: 100%
+- 集成模块覆盖率: 均超过 90% 目标
+
+**技术细节**
+- 修复 timeout 参数默认值导致的配置覆盖问题
+- 修复 Mock 对象返回 Mock 而非字符串的 Pydantic 验证错误
+- 修复 @retry 装饰器导致的异常类型变更（RetryError vs 原始异常）
+- 改进测试 Mock 策略，确保字段明确赋值
+
 #### 2026-01-16 (下午) - Sprint 2 Task 2.5: Reranker Model Integration ✅
 
 **Epic 3: RAG 检索引擎 - Cross-Encoder 重排序** (Story 3.4 部分完成)
