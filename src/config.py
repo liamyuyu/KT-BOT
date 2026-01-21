@@ -41,7 +41,7 @@ class Settings(BaseSettings):
         description="默认对话模型"
     )
     ollama_embedding_model: str = Field(
-        default="bge-large-zh",
+        default="nomic-embed-text",
         description="默认 Embedding 模型"
     )
     ollama_timeout: int = Field(

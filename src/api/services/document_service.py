@@ -145,7 +145,10 @@ class DocumentService:
 
             # 生成 embeddings
             chunk_texts = [chunk.content for chunk in chunks]
-            embeddings = await self.embedding_model.embed_batch(chunk_texts)
+            embedding_responses = await self.embedding_model.embed_batch(chunk_texts)
+
+            # 提取 embedding 向量
+            embeddings = [resp.embedding for resp in embedding_responses]
 
             # 准备数据
             chunk_ids = [chunk.chunk_id for chunk in chunks]

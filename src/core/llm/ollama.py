@@ -306,11 +306,11 @@ class OllamaEmbedding(BaseEmbedding):
 
     async def embed(self, text: str) -> EmbeddingResponse:
         """生成文本的 Embedding"""
-        url = f"{self.host}/api/embeddings"
+        url = f"{self.host}/api/embed"
 
         payload = {
             "model": self.model_name,
-            "prompt": text,
+            "input": text,
         }
 
         try:
@@ -318,8 +318,12 @@ class OllamaEmbedding(BaseEmbedding):
             response.raise_for_status()
             data = response.json()
 
+            # Ollama API returns "embeddings" as an array, we take the first one
+            embeddings = data.get("embeddings", [])
+            embedding = embeddings[0] if embeddings else []
+
             return EmbeddingResponse(
-                embedding=data.get("embedding", []),
+                embedding=embedding,
                 model=self.model_name,
             )
         except httpx.HTTPError as e:

@@ -33,7 +33,7 @@ llm:
 # Embedding 模型配置
 embedding:
   provider: "ollama"
-  default_model: "bge-large-zh"
+  default_model: "nomic-embed-text"
   models:
     - name: "bge-large-zh"
       enabled: true
