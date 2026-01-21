@@ -419,7 +419,15 @@ class ChatService:
                         distance=1.0 - r.rerank_score,  # 转换为距离
                         rerank_score=r.rerank_score,
                         original_rank=r.original_rank,
-                        reranked=True
+                        reranked=True,
+                        citation={
+                            "source_id": r.metadata.get("issue_key") or r.metadata.get("document_id", "unknown"),
+                            "source_type": r.metadata.get("source_type", "unknown"),
+                            "source_url": r.metadata.get("url"),
+                            "chunk_index": r.chunk_index,
+                            "relevance_score": r.rerank_score,
+                            "highlights": getattr(r, "highlights", [])
+                        } if hasattr(r, "citation") or r.metadata.get("issue_key") else None
                     )
                     for r in reranked_results
                 ]
@@ -445,7 +453,15 @@ class ChatService:
                         },
                         retrieval_method=retrieval_method,
                         distance=r.distance,
-                        reranked=False
+                        reranked=False,
+                        citation={
+                            "source_id": r.metadata.get("issue_key") or r.metadata.get("document_id", "unknown"),
+                            "source_type": r.metadata.get("source_type", "unknown"),
+                            "source_url": r.metadata.get("url"),
+                            "chunk_index": r.chunk_index,
+                            "relevance_score": r.score,
+                            "highlights": getattr(r, "highlights", [])
+                        } if hasattr(r, "citation") or r.metadata.get("issue_key") else None
                     )
                     for r in results[:top_k]  # 只取前 top_k
                 ]

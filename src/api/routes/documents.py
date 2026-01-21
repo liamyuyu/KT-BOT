@@ -1,8 +1,10 @@
 """
 文档管理 API 路由
 """
-from fastapi import APIRouter, HTTPException, status
-from typing import List
+import tempfile
+from pathlib import Path
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
+from typing import List, Optional
 
 from ..schemas.document import (
     DocumentUploadRequest, DocumentUpdateRequest, DocumentQueryRequest,
@@ -42,6 +44,94 @@ async def upload_document(request: DocumentUploadRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.post("/upload-file", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_document_file(
+    file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+    tags: Optional[str] = Form("")
+):
+    """
+    上传文档文件（PDF、Word、Markdown）
+
+    Args:
+        file: 上传的文件
+        title: 文档标题（可选，留空则自动提取）
+        tags: 标签（逗号分隔）
+
+    Returns:
+        上传响应
+
+    Raises:
+        HTTPException: 上传失败
+    """
+    # 验证文件类型
+    allowed_extensions = ['.pdf', '.docx', '.doc', '.md']
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file_ext}. Supported types: {', '.join(allowed_extensions)}"
+        )
+
+    # 验证文件大小（最大 10MB）
+    content = await file.read()
+    max_size = 10 * 1024 * 1024  # 10MB
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large: {len(content)} bytes (max: {max_size} bytes)"
+        )
+
+    # 保存到临时文件
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        # 解析文档
+        from src.document_processing.parser.factory import get_parser_factory
+        factory = get_parser_factory()
+        parsed = await factory.parse_file(tmp_path)
+
+        # 上传到文档服务
+        service = get_document_service()
+        tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
+        request = DocumentUploadRequest(
+            title=title or parsed.title,
+            content=parsed.content,
+            source_type="local_file",
+            source_id=f"file_{Path(file.filename).stem}",
+            tags=tags_list,
+            metadata={
+                **parsed.metadata,
+                "file_type": parsed.file_type,
+                "word_count": parsed.word_count,
+                "original_filename": file.filename
+            }
+        )
+
+        response = await service.upload_document(request)
+        return response
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Parser dependency missing: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse or upload file: {str(e)}"
+        )
+    finally:
+        # 清理临时文件
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 @router.post("/query", response_model=DocumentListResponse)

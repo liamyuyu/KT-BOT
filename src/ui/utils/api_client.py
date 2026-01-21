@@ -308,6 +308,50 @@ class ChatAPIClient:
             logger.error(f"Upload document failed: {e}")
             return None
 
+    async def upload_document_file(
+        self,
+        file_path: str,
+        title: Optional[str] = None,
+        tags: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        上传文档文件（PDF、Word、Markdown）
+
+        Args:
+            file_path: 文件路径
+            title: 文档标题（可选，留空则自动提取）
+            tags: 标签（逗号分隔字符串）
+
+        Returns:
+            上传响应数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload-file"
+
+        try:
+            # 打开文件
+            with open(file_path, 'rb') as f:
+                files = {'file': (file_path.split('/')[-1], f, 'application/octet-stream')}
+
+                # 准备表单数据
+                data = {}
+                if title:
+                    data['title'] = title
+                if tags:
+                    data['tags'] = tags
+
+                # 使用 multipart/form-data 上传
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    response = await client.post(url, files=files, data=data)
+                    response.raise_for_status()
+                    return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Upload file failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Upload file failed: {e}")
+            return None
+
     async def list_documents(
         self,
         source_type: Optional[str] = None,

@@ -25,15 +25,43 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
 
+    # 加载配置
+    llm_manager = get_llm_manager()
+    config = llm_manager.config
+
+    # 启动时健康检查
+    if config.health_check.enabled and config.health_check.startup_check:
+        logger.info("Performing startup health check...")
+        from src.core.llm.health import get_health_checker
+
+        checker = get_health_checker()
+        health_results = await checker.check_all()
+        overall = checker.get_overall_status(health_results)
+
+        if overall == "unhealthy":
+            logger.error("⚠️  Startup health check failed!")
+            for name, status in health_results.items():
+                if status.status == "unhealthy":
+                    logger.error(f"  ❌ {name}: {status.error}")
+
+            # 根据配置决定是否阻止启动
+            if settings.environment == "production":
+                raise RuntimeError("Model health check failed at startup")
+            else:
+                logger.warning("⚠️  Continuing in development mode...")
+        else:
+            logger.info("✅ All models healthy")
+
     # 预加载模型
     logger.info("Preloading models...")
     try:
-        llm_manager = get_llm_manager()
         llm_manager.create_llm()  # 预加载默认 LLM
         llm_manager.create_embedding()  # 预加载默认 Embedding
-        logger.info("Models preloaded successfully")
+        logger.info("✅ Models preloaded successfully")
     except Exception as e:
-        logger.error(f"Failed to preload models: {e}", exc_info=True)
+        logger.error(f"❌ Failed to preload models: {e}", exc_info=True)
+        if settings.environment == "production":
+            raise
 
     yield
 

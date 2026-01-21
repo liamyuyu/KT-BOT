@@ -1,0 +1,63 @@
+version: "1.0"
+
+# LLM 模型配置
+llm:
+  provider: "ollama"
+  default_model: "qwen2.5:7b"
+  models:
+    - name: "qwen2.5:7b"
+      enabled: true
+      capabilities: ["chat", "completion"]
+      max_tokens: 8192
+      temperature: 0.7
+      top_p: 0.9
+    - name: "qwen2.5:14b"
+      enabled: true
+      capabilities: ["chat", "completion"]
+      max_tokens: 8192
+      temperature: 0.7
+      top_p: 0.9
+    - name: "llama3.1:8b"
+      enabled: false
+      capabilities: ["chat", "completion"]
+      max_tokens: 8192
+      temperature: 0.7
+      top_p: 0.9
+    - name: "mistral:7b"
+      enabled: false
+      capabilities: ["chat", "completion"]
+      max_tokens: 8192
+      temperature: 0.7
+      top_p: 0.9
+
+# Embedding 模型配置
+embedding:
+  provider: "ollama"
+  default_model: "bge-large-zh"
+  models:
+    - name: "bge-large-zh"
+      enabled: true
+      dimension: 1024
+      batch_size: 32
+      max_batch_size: 100
+      timeout: 60
+    - name: "nomic-embed-text"
+      enabled: true
+      dimension: 768
+      batch_size: 32
+      max_batch_size: 100
+      timeout: 60
+    - name: "mxbai-embed-large"
+      enabled: false
+      dimension: 1024
+      batch_size: 32
+      max_batch_size: 100
+      timeout: 60
+
+# 健康检查配置
+health_check:
+  enabled: true
+  startup_check: true
+  check_interval: 300
+  timeout: 10
+  retry_count: 3

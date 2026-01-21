@@ -9,6 +9,7 @@ from enum import Enum
 
 from .base import BaseLLM, BaseEmbedding, ModelInfo
 from .ollama import OllamaLLM, OllamaEmbedding
+from .config import ModelsConfig, ModelConfigLoader
 from ...config import settings
 from ...constants import (
     SUPPORTED_LLM_MODELS,
@@ -37,6 +38,47 @@ class LLMManager:
         self._llm_cache: Dict[str, BaseLLM] = {}
         self._embedding_cache: Dict[str, BaseEmbedding] = {}
         self.default_provider = ModelProvider.OLLAMA
+        self.config = self._load_config()
+
+    def _load_config(self) -> ModelsConfig:
+        """
+        加载配置：优先级 YAML > ENV
+
+        Returns:
+            ModelsConfig: 模型配置对象
+        """
+        return ModelConfigLoader.load_config()
+
+    def reload_config(self) -> ModelsConfig:
+        """
+        重新加载配置（支持热加载）
+
+        Returns:
+            ModelsConfig: 新的模型配置对象
+        """
+        logger.info("Reloading models configuration...")
+        self.config = self._load_config()
+        return self.config
+
+    def get_enabled_llm_models(self) -> List[str]:
+        """
+        获取启用的 LLM 模型列表
+
+        Returns:
+            List[str]: 启用的模型名称列表
+        """
+        models = self.config.llm.get("models", [])
+        return [m["name"] for m in models if m.get("enabled", True)]
+
+    def get_enabled_embedding_models(self) -> List[str]:
+        """
+        获取启用的 Embedding 模型列表
+
+        Returns:
+            List[str]: 启用的模型名称列表
+        """
+        models = self.config.embedding.get("models", [])
+        return [m["name"] for m in models if m.get("enabled", True)]
 
     def create_llm(
         self,
@@ -123,12 +165,22 @@ class LLMManager:
             logger.debug(f"Using cached Embedding: {cache_key}")
             return self._embedding_cache[cache_key]
 
+        # 从配置读取 batch_size
+        batch_size = 32  # 默认值
+        if self.config and self.config.embedding:
+            embedding_models = self.config.embedding.get("models", [])
+            for model_cfg in embedding_models:
+                if model_cfg.get("name") == model_name:
+                    batch_size = model_cfg.get("batch_size", 32)
+                    break
+
         # 创建新实例
         if provider == ModelProvider.OLLAMA:
             embedding = OllamaEmbedding(
                 model_name=model_name,
                 host=settings.ollama_host,
                 timeout=settings.ollama_timeout,
+                batch_size=batch_size,
                 **kwargs
             )
         else:

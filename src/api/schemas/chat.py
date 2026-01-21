@@ -83,6 +83,9 @@ class RetrievedContext(BaseModel):
     original_rank: Optional[int] = Field(None, description="原始排名（重排序前）")
     reranked: Optional[bool] = Field(False, description="是否经过重排序")
 
+    # 引用溯源信息
+    citation: Optional[Dict[str, Any]] = Field(None, description="引用信息（source_id, source_type, highlights 等）")
+
 
 class ChatResponse(BaseModel):
     """对话响应模型（非流式）"""

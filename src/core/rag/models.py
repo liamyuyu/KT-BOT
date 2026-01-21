@@ -4,7 +4,7 @@ RAG（检索增强生成）数据模型定义（使用 Pydantic）
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -70,6 +70,36 @@ class IndexResult(BaseModel):
     )
 
 
+class CitationInfo(BaseModel):
+    """
+    引用信息模型
+    用于标识检索结果的来源和高亮关键词
+    """
+    source_id: str = Field(..., description="来源 ID（如 issue_key 或 document_id）")
+    source_type: str = Field(..., description="来源类型（jira, confluence, local）")
+    source_url: Optional[str] = Field(None, description="来源链接")
+    chunk_index: int = Field(..., description="块在原文档中的序号")
+    start_index: int = Field(..., description="在原文档中的起始位置")
+    end_index: int = Field(..., description="在原文档中的结束位置")
+    relevance_score: float = Field(..., description="相关性评分")
+    highlights: List[Tuple[int, int]] = Field(default_factory=list, description="高亮位置列表（起始，结束）")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "source_id": "PROJ-123",
+                "source_type": "jira",
+                "source_url": "https://jira.example.com/browse/PROJ-123",
+                "chunk_index": 0,
+                "start_index": 0,
+                "end_index": 500,
+                "relevance_score": 0.85,
+                "highlights": [(10, 15), (50, 60)]
+            }
+        }
+    )
+
+
 class RetrievalResult(BaseModel):
     """
     检索结果模型
@@ -82,6 +112,7 @@ class RetrievalResult(BaseModel):
     score: float = Field(..., description="相似度分数（0-1，越大越相似）")
     distance: float = Field(..., description="向量距离（越小越相似）")
     chunk_index: int = Field(..., description="块在原文档中的序号")
+    citation: Optional[CitationInfo] = Field(None, description="引用信息")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -100,6 +131,83 @@ class RetrievalResult(BaseModel):
             }
         }
     )
+
+    @classmethod
+    def from_chunk_with_citation(
+        cls,
+        chunk: "Chunk",
+        score: float,
+        distance: float,
+        query: str
+    ) -> "RetrievalResult":
+        """
+        从 Chunk 构建带引用信息的检索结果
+
+        Args:
+            chunk: 文档块
+            score: 相似度分数
+            distance: 向量距离
+            query: 查询文本
+
+        Returns:
+            RetrievalResult: 带引用信息的检索结果
+        """
+        citation = CitationInfo(
+            source_id=chunk.metadata.get("issue_key") or chunk.metadata.get("document_id", "unknown"),
+            source_type=chunk.metadata.get("source_type", "unknown"),
+            source_url=chunk.metadata.get("url"),
+            chunk_index=chunk.chunk_index,
+            start_index=chunk.start_index,
+            end_index=chunk.end_index,
+            relevance_score=score,
+            highlights=extract_highlights(chunk.content, query)
+        )
+
+        return cls(
+            chunk_id=chunk.chunk_id,
+            parent_id=chunk.parent_id,
+            content=chunk.content,
+            metadata=chunk.metadata,
+            score=score,
+            distance=distance,
+            chunk_index=chunk.chunk_index,
+            citation=citation
+        )
+
+
+def extract_highlights(content: str, query: str) -> List[Tuple[int, int]]:
+    """
+    提取查询关键词在内容中的位置
+
+    Args:
+        content: 文本内容
+        query: 查询关键词
+
+    Returns:
+        List[Tuple[int, int]]: 高亮位置列表（起始，结束）
+    """
+    try:
+        import jieba
+
+        query_tokens = set(jieba.lcut(query.lower()))
+        highlights = []
+        content_lower = content.lower()
+
+        for token in query_tokens:
+            if len(token) < 2:
+                continue
+            start = 0
+            while True:
+                pos = content_lower.find(token, start)
+                if pos == -1:
+                    break
+                highlights.append((pos, pos + len(token)))
+                start = pos + 1
+
+        return highlights
+    except Exception:
+        # jieba 可能未安装，返回空列表
+        return []
 
 
 class ChunkingConfig(BaseModel):

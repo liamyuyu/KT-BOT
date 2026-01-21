@@ -285,6 +285,7 @@ class OllamaEmbedding(BaseEmbedding):
         model_name: str,
         host: Optional[str] = None,
         timeout: int = 300,
+        batch_size: int = 32,
         **kwargs
     ):
         """
@@ -294,11 +295,13 @@ class OllamaEmbedding(BaseEmbedding):
             model_name: 模型名称
             host: Ollama 服务地址
             timeout: 请求超时时间（秒）
+            batch_size: 批处理大小
             **kwargs: 其他配置参数
         """
         super().__init__(model_name, **kwargs)
         self.host = host or settings.ollama_host
         self.timeout = timeout
+        self.batch_size = batch_size
         self.client = httpx.AsyncClient(timeout=timeout)
 
     async def embed(self, text: str) -> EmbeddingResponse:
@@ -323,12 +326,48 @@ class OllamaEmbedding(BaseEmbedding):
             logger.error(f"Ollama embedding error: {e}")
             raise
 
-    async def embed_batch(self, texts: List[str]) -> List[EmbeddingResponse]:
-        """批量生成 Embedding"""
+    async def embed_batch(
+        self,
+        texts: List[str],
+        batch_size: Optional[int] = None
+    ) -> List[EmbeddingResponse]:
+        """
+        批量生成 Embedding（并发优化）
+
+        Args:
+            texts: 文本列表
+            batch_size: 批次大小，默认从配置读取
+
+        Returns:
+            List[EmbeddingResponse]: Embedding 响应列表
+        """
+        import asyncio
+
+        # 使用配置的批次大小
+        if batch_size is None:
+            batch_size = self.batch_size
+
+        # 空列表直接返回
+        if not texts:
+            return []
+
+        # 小批量：直接并发
+        if len(texts) < 10:
+            tasks = [self.embed(text) for text in texts]
+            return await asyncio.gather(*tasks)
+
+        # 大批量：分批并发
         results = []
-        for text in texts:
-            result = await self.embed(text)
-            results.append(result)
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            tasks = [self.embed(text) for text in batch]
+            batch_results = await asyncio.gather(*tasks)
+            results.extend(batch_results)
+
+            # 添加小延迟避免过载
+            if i + batch_size < len(texts):
+                await asyncio.sleep(0.1)
+
         return results
 
     async def health_check(self) -> bool:

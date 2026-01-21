@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional
 import asyncio
 
 from ..utils.api_client import get_api_client
+from ..components.citation import create_citation_badge, highlight_content
 
 logger = logging.getLogger(__name__)
 
@@ -415,14 +416,14 @@ class ChatPage:
     @staticmethod
     def _format_response(content: str, contexts: Optional[List[dict]] = None) -> str:
         """
-        格式化响应内容，添加 RAG 来源引用
+        格式化响应内容，添加 RAG 来源引用（支持引用溯源）
 
         Args:
             content: 原始响应内容
-            contexts: RAG 检索结果
+            contexts: RAG 检索结果（包含 citation 信息）
 
         Returns:
-            格式化后的 Markdown 内容
+            格式化后的 Markdown/HTML 内容
         """
         formatted = content
 
@@ -432,27 +433,46 @@ class ChatPage:
             formatted += "### 📚 参考来源\n\n"
 
             for i, ctx in enumerate(contexts, 1):
-                source = ctx.get("source", {})
-                score = ctx.get("score", 0)
-                chunk_id = ctx.get("chunk_id", "unknown")
+                # 获取引用信息（新增）
+                citation = ctx.get("citation", {})
 
-                # 提取来源信息
-                source_type = source.get("source_type", "unknown")
-                project_key = source.get("project_key", "")
-                issue_key = source.get("issue_key", "")
-                title = source.get("title", "未知文档")
+                if citation:
+                    # 使用引用溯源组件显示
+                    badge_html = create_citation_badge(citation)
+                    formatted += f"{badge_html}\n\n"
 
-                # 构建来源显示
-                if source_type == "jira_issue" and issue_key:
-                    source_text = f"**[{i}] JIRA Issue: {issue_key}** - {title}"
-                elif source_type == "confluence_page":
-                    source_text = f"**[{i}] Confluence Page** - {title}"
+                    # 显示高亮内容预览
+                    ctx_content = ctx.get("content", "")
+                    highlights = citation.get("highlights", [])
+
+                    # 截取前 300 字符并高亮
+                    preview = ctx_content[:300]
+                    if len(ctx_content) > 300:
+                        preview += "..."
+
+                    highlighted = highlight_content(preview, highlights)
+                    formatted += f"<blockquote style='border-left: 3px solid #0052CC; padding-left: 12px; color: #42526E;'>{highlighted}</blockquote>\n\n"
                 else:
-                    source_text = f"**[{i}] 文档** - {title}"
+                    # 回退到旧格式（向后兼容）
+                    source = ctx.get("source", {})
+                    score = ctx.get("score", 0)
 
-                # 添加相似度分数
-                score_percent = int(score * 100)
-                formatted += f"{source_text} (相关度: {score_percent}%)\n"
+                    # 提取来源信息
+                    source_type = source.get("source_type", "unknown")
+                    issue_key = source.get("issue_key", "")
+                    title = source.get("title", "未知文档")
+
+                    # 构建来源显示
+                    if source_type == "jira_issue" and issue_key:
+                        source_text = f"**[{i}] JIRA Issue: {issue_key}** - {title}"
+                    elif source_type == "confluence_page":
+                        source_text = f"**[{i}] Confluence Page** - {title}"
+                    else:
+                        source_text = f"**[{i}] 文档** - {title}"
+
+                    # 添加相似度分数
+                    score_percent = int(score * 100)
+                    formatted += f"{source_text} (相关度: {score_percent}%)\n"
 
             formatted += "\n> 💡 回答基于以上文档内容生成"
 

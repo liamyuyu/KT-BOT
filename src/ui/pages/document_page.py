@@ -99,6 +99,60 @@ def create_document_page() -> gr.Blocks:
         """同步包装"""
         return asyncio.run(upload_document_async(title, content, tags))
 
+    async def upload_file_async(
+        file_obj,
+        title: str,
+        tags_input: str
+    ) -> Tuple[List[List], str]:
+        """上传文件"""
+        try:
+            # 验证文件
+            if file_obj is None:
+                return [], "✗ 请选择文件"
+
+            # 获取文件路径
+            file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
+
+            # 验证文件类型
+            allowed_extensions = ['.pdf', '.docx', '.doc', '.md']
+            import os
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext not in allowed_extensions:
+                return [], f"✗ 不支持的文件类型: {file_ext}。支持的类型: {', '.join(allowed_extensions)}"
+
+            # 验证文件大小（最大 10MB）
+            file_size = os.path.getsize(file_path)
+            max_size = 10 * 1024 * 1024
+            if file_size > max_size:
+                return [], f"✗ 文件过大: {file_size / 1024 / 1024:.1f}MB（最大 10MB）"
+
+            # 调用 API
+            response = await client.upload_document_file(
+                file_path=file_path,
+                title=title.strip() if title and title.strip() else None,
+                tags=tags_input if tags_input and tags_input.strip() else None
+            )
+
+            if response and "document_id" in response:
+                # 重新加载文档列表
+                rows, _ = await load_documents_async()
+                status_msg = f"✓ 上传成功！\n"
+                status_msg += f"- 文档ID: {response['document_id']}\n"
+                status_msg += f"- 标题: {response.get('title', 'N/A')}\n"
+                status_msg += f"- 分块数: {response.get('chunk_count', 0)}\n"
+                status_msg += f"- 索引时间: {response.get('indexed_at', 'N/A')}"
+                return rows, status_msg
+            else:
+                return [], "✗ 上传失败"
+
+        except Exception as e:
+            logger.error(f"Failed to upload file: {e}", exc_info=True)
+            return [], f"✗ 上传失败: {str(e)}"
+
+    def upload_file(file_obj, title: str, tags: str) -> Tuple[List[List], str]:
+        """同步包装"""
+        return asyncio.run(upload_file_async(file_obj, title, tags))
+
     async def delete_document_async(
         selected_rows: List[int],
         all_rows: List[List]
@@ -200,7 +254,7 @@ def create_document_page() -> gr.Blocks:
                 document_table = gr.Dataframe(
                     headers=["ID", "标题", "来源", "分块数", "标签", "索引时间"],
                     datatype=["str", "str", "str", "number", "str", "str"],
-                    col_count=(6, "fixed"),
+                    column_count=(6, "fixed"),
                     value=[],
                     label="",
                     interactive=False,
@@ -220,22 +274,54 @@ def create_document_page() -> gr.Blocks:
             with gr.Column(scale=1):
                 gr.Markdown("## 上传文档")
 
-                upload_title = gr.Textbox(
-                    label="标题",
-                    placeholder="输入文档标题...",
-                    lines=1
-                )
-                upload_content = gr.Textbox(
-                    label="内容",
-                    placeholder="粘贴文档内容...",
-                    lines=10
-                )
-                upload_tags = gr.Textbox(
-                    label="标签（逗号分隔）",
-                    placeholder="如: python, tutorial, api",
-                    lines=1
-                )
-                upload_btn = gr.Button("📤 上传", variant="primary")
+                with gr.Tabs():
+                    # Tab 1: 文本上传
+                    with gr.Tab("📝 文本上传"):
+                        upload_title = gr.Textbox(
+                            label="标题",
+                            placeholder="输入文档标题...",
+                            lines=1
+                        )
+                        upload_content = gr.Textbox(
+                            label="内容",
+                            placeholder="粘贴文档内容...",
+                            lines=10
+                        )
+                        upload_tags = gr.Textbox(
+                            label="标签（逗号分隔）",
+                            placeholder="如: python, tutorial, api",
+                            lines=1
+                        )
+                        upload_btn = gr.Button("📤 上传", variant="primary")
+
+                    # Tab 2: 文件上传
+                    with gr.Tab("📤 文件上传"):
+                        file_input = gr.File(
+                            label="选择文件",
+                            file_types=[".pdf", ".docx", ".doc", ".md"],
+                            file_count="single"
+                        )
+                        file_title = gr.Textbox(
+                            label="文档标题（可选）",
+                            placeholder="留空则自动从文件提取...",
+                            lines=1
+                        )
+                        file_tags = gr.Textbox(
+                            label="标签（逗号分隔）",
+                            placeholder="如: 技术文档, API, 用户指南",
+                            lines=1
+                        )
+                        gr.Markdown(
+                            """
+                            **支持的文件格式**:
+                            - PDF (.pdf)
+                            - Word (.docx, .doc)
+                            - Markdown (.md)
+
+                            **文件大小限制**: 最大 10MB
+                            """
+                        )
+                        upload_file_btn = gr.Button("📤 上传文件", variant="primary")
 
                 gr.Markdown("---")
                 gr.Markdown("## 统计信息")
@@ -264,7 +350,7 @@ def create_document_page() -> gr.Blocks:
             outputs=[document_table, status_text]
         )
 
-        # 上传按钮
+        # 上传按钮（文本）
         upload_btn.click(
             fn=upload_document,
             inputs=[upload_title, upload_content, upload_tags],
@@ -272,6 +358,16 @@ def create_document_page() -> gr.Blocks:
         ).then(
             fn=lambda: ("", "", ""),  # 清空上传表单
             outputs=[upload_title, upload_content, upload_tags]
+        )
+
+        # 上传按钮（文件）
+        upload_file_btn.click(
+            fn=upload_file,
+            inputs=[file_input, file_title, file_tags],
+            outputs=[document_table, status_text]
+        ).then(
+            fn=lambda: (None, "", ""),  # 清空文件上传表单
+            outputs=[file_input, file_title, file_tags]
         )
 
         # 删除按钮（注意：Gradio Dataframe 选择功能有限，暂时使用简化实现）
