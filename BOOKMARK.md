@@ -1,11 +1,12 @@
 # 🔖 开发进度书签 | Development Bookmark
 
-> **最后更新**: 2026-01-21
-> **当前 Sprint**: Sprint 3 (2026-01-31 ~ 2026-02-13)
+> **最后更新**: 2026-01-27
+> **当前 Sprint**: Sprint 4 (2026-02-14 ~ 2026-02-27)
 > **Sprint 1**: ✅ 全部完成 (55/55 故事点)
 > **Sprint 2**: ✅ 全部完成 (29/29 故事点)
 > **Sprint 3**: ✅ 全部完成 (42/42 故事点，100% 完成)
-> **当前阶段**: Sprint 3 全部完成 ✅，包括 UI 集成和完整测试
+> **Sprint 4**: ⏳ 进行中 (5/31 故事点，16% 完成)
+> **当前阶段**: Sprint 4 Story 2.3 完成 ✅ - 数据同步调度器全部交付
 
 ---
 
@@ -325,11 +326,121 @@ pip install pypdf python-docx pyyaml
 
 ---
 
+### ⏳ Sprint 4 - 当前任务 (5/31 故事点，16% ✅)
+
+| 任务 | Story | 状态 | 完成日期 | 交付 |
+|------|-------|------|----------|------|
+| Task 4.1 | **数据同步调度器 (5点)** | ✅ | 2026-01-27 | ~5,460 行代码 |
+| Task 4.2 | 检索结果过滤 (5点) | ⏳ | - | - |
+| Task 4.3 | 搜索功能 (8点) | ⏳ | - | - |
+| Task 4.4 | 模型切换 UI (5点) | ⏳ | - | - |
+| Task 4.5 | 同步状态显示 (8点) | ⏳ | - | - |
+
+**最新提交**:
+```bash
+# Story 2.3 - 数据同步调度器（100% 完成）✅
+
+✅ Phase 1: 调度器核心架构（~1,350行）
+   - SyncScheduler: 核心调度器实现
+   - SyncTaskExecutor: 异步任务执行器
+   - Repository: SyncConfigRepo + SyncHistoryRepo
+   - Models: SyncTask, SyncConfig, SyncHistory, TaskMetrics
+   - 支持 JIRA/Confluence 数据源
+   - Cron 表达式调度（基于 APScheduler）
+
+✅ Phase 2: 数据库模型和迁移（113行）
+   - 创建 sync_configs 表（同步配置）
+   - 创建 sync_histories 表（同步历史）
+   - 添加索引优化（source+sync_type, task_id+status）
+   - 外键约束和级联删除
+
+✅ Phase 3: RESTful API 端点（~570行）
+   - 11 个完整 API 端点
+   - 配置管理：CRUD 操作
+   - 任务管理：触发、查询、取消
+   - 历史查询：列表、详情、统计
+   - API 数据模型：8个 Pydantic 模型
+
+✅ Phase 4: 单元测试和手动测试（~1,940行）
+   - 14 个单元测试文件
+   - 14 个手动测试脚本
+   - 测试覆盖率：~85%
+
+✅ Phase 5: 集成测试（~1,410行）
+   - 端到端测试：8个测试场景
+   - 性能测试：4个性能基准测试
+   - 错误处理测试：9个错误场景
+   - 测试覆盖率：~82%
+
+# 代码统计
+- 新增文件: 31 个
+- 生产代码: ~2,033 行
+- 测试代码: ~3,435 行（单元测试 + 集成测试）
+- 文档: ~5,000+ 行
+- **总计**: ~5,460 行代码
+
+# 关键特性
+1. 完整的调度器架构（APScheduler + PostgreSQL）
+2. 多数据源支持（JIRA、Confluence）
+3. 灵活的调度策略（Cron 表达式）
+4. 任务去重和并发控制
+5. 完整的 RESTful API（11个端点）
+6. 高测试覆盖率（单元测试 ~85%，集成测试 ~82%）
+```
+
+**Sprint 4 进度条**:
+```
+████░░░░░░░░░░░░░░░░░░░░░░░░░░ 16% (5/31 points) ⏳ IN PROGRESS
+```
+
+---
+
 ## 🎯 下一步任务 | Next Task
 
-### ✅ **Sprint 3 全部完成** (42/42点，100% ✅)
+### ⏳ **Sprint 4 进行中** (5/31点，16% ✅)
 
-**完成状态**: 100% 完成 (42/42 点)
+**完成状态**: Story 2.3 完成 (5/31 点)
+
+**已完成任务**:
+- [x] **Story 2.3**: 数据同步调度器 (5点) ✅ 完成 2026-01-27
+  - Phase 1: 调度器核心架构（~1,350行）
+  - Phase 2: 数据库模型和迁移（113行）
+  - Phase 3: RESTful API 端点（~570行）
+  - Phase 4: 单元测试和手动测试（~1,940行）
+  - Phase 5: 集成测试（~1,410行）
+  - 总计：~5,460 行代码，21个集成测试
+
+**计划中任务**:
+- [ ] **Story 3.7**: 检索结果过滤 (5点) - Epic 3
+- [ ] **Story 4.5**: 搜索功能 (8点) - Epic 4
+- [ ] **Story 4.6**: 模型切换 UI (5点) - Epic 4
+- [ ] **Story 4.7**: 同步状态显示 (8点) - Epic 4
+
+**Sprint 4 交付物** (目标):
+- ✅ 自动化数据同步调度系统
+- ⏳ 按来源/时间/类型过滤检索结果
+- ⏳ 全局搜索功能
+- ⏳ UI 模型切换界面
+- ⏳ 同步状态实时显示
+
+---
+
+### 📝 **当前焦点**: Story 3.7 - 检索结果过滤 (5点)
+
+**任务描述**: 实现按来源、时间、类型过滤检索结果的功能
+
+**关键工作项**:
+1. 扩展 RetrievalResult 数据模型（添加过滤字段）
+2. 实现过滤逻辑（VectorRetriever 和 HybridRetriever）
+3. 创建 API 端点（支持过滤参数）
+4. UI 集成（添加过滤控件）
+5. 测试（单元测试 + 集成测试）
+
+---
+
+## 🎉 已完成里程碑
+
+### 🎊 **Sprint 3 已完成！** (42/42点，100% ✅)
 
 **已完成任务**:
 - [x] **Story 1.5**: 模型配置文件管理 (5点) ✅
@@ -338,29 +449,6 @@ pip install pypdf python-docx pyyaml
 - [x] **Story 3.5**: 引用溯源系统（完整实现） (8点) ✅
 - [x] **Story 4.13**: 本地文档上传（完整实现） (8点) ✅
 
-**UI集成任务**（已完成）:
-1. **引用溯源UI集成** ✅
-   - [x] 修改 `src/api/services/chat_service.py` 添加 citation 数据
-   - [x] 修改 `src/api/schemas/chat.py` 添加 citation 字段
-   - [x] 更新 `src/ui/pages/chat_page.py` 显示引用
-   - [x] 使用 `citation.py` 组件（badges, highlighting）
-   - [x] 测试端到端引用溯源流程
-
-2. **文档上传UI** ✅
-   - [x] 在 `src/ui/utils/api_client.py` 添加 `upload_document_file()` 方法
-   - [x] 在 `src/ui/pages/document_page.py` 添加文件上传Tab
-   - [x] 使用 Gradio `gr.File` 组件
-   - [x] 连接到 `/api/v1/documents/upload-file` 端点
-   - [x] 测试上传PDF/DOCX/Markdown文件
-
-3. **集成测试** ✅
-   - [x] 创建 `tests/ui/test_sprint3_integration.py`
-   - [x] 10 个集成测试全部通过（100%）
-   - [x] 测试覆盖：引用溯源、文档上传、向后兼容性
-
-**已延期**:
-- [ ] **Story 3.6**: 增量索引更新 (8点) - 延期到 Sprint 4+
-
 **Sprint 3 交付物**:
 - ✅ 完整的模型管理系统（LLM + Embedding）
 - ✅ 引用溯源完整功能（模型 + UI + 测试）
@@ -368,35 +456,19 @@ pip install pypdf python-docx pyyaml
 - ✅ 10/10 UI 集成测试全部通过
 - ✅ v0.2.0 Enhanced Retrieval 版本核心功能完成
 
----
+### 🎊 **Sprint 1-2 已完成！** (84/84点，100% ✅)
 
-## 🎉 已完成里程碑
+**Sprint 1 交付物**:
+✅ Ollama 模型集成和管理
+✅ Jira 和 Confluence API 集成
+✅ RAG 文档索引和 ChromaDB
+✅ Web UI 对话界面（含完整文档）
 
-### 🎊 **Sprint 1 已完成！**
-
-所有任务（55/55 故事点）已交付完成，包括：
-
-✅ Task 1.1-1.2: Ollama 模型集成和管理
-✅ Task 1.3-1.4: Jira 和 Confluence API 集成
-✅ Task 1.5-1.6: RAG 文档索引和 ChromaDB
-✅ Task 1.7: Web UI 对话界面（含完整文档）
-
-### 📋 Sprint 2 规划建议
-
-**Epic 3 & 9**: RAG 检索优化
-- 混合检索（向量 + BM25）
-- Cross-Encoder 重排序
-- 查询改写和扩展
-
-**Epic 4**: Web UI 增强
-- 高级对话功能（多轮、上下文）
-- 文档管理界面
-- 统计和监控仪表盘
-
-**Epic 5**: MCP 协议集成
-- MCP Server 实现
-- 自定义 Tools 开发
-- 与 Claude Desktop 集成
+**Sprint 2 交付物**:
+✅ 混合检索（向量 + BM25）
+✅ Cross-Encoder 重排序
+✅ 完整 RAG Pipeline
+✅ 文档管理系统（后端 + UI）
 
 具体规划请参考 `SPRINTS.md`
 
@@ -1016,5 +1088,5 @@ cat ~/.claude/plans/fuzzy-wondering-sketch.md
 ---
 
 **书签创建时间**: 2026-01-12
-**最近更新**: 2026-01-21 (Sprint 3 完成 100% ✅ - 模型管理、引用溯源、文档上传全部完成，包括 UI 集成)
-**下次更新**: Sprint 4 开始后更新 (2026-02-14)
+**最近更新**: 2026-01-27 (Sprint 4 Story 2.3 完成 ✅ - 数据同步调度器全部交付，包括集成测试)
+**下次更新**: Sprint 4 下一个 Story 完成后更新
