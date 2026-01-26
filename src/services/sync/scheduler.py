@@ -31,6 +31,8 @@ from .exceptions import (
     SyncTaskNotFoundError,
     SyncTaskAlreadyRunningError,
 )
+from src.storage.database import async_session_factory
+from src.storage.database.repository import SyncHistoryRepo, SyncConfigRepo
 
 
 logger = logging.getLogger(__name__)
@@ -48,12 +50,13 @@ class SyncScheduler:
     - 提供任务查询接口
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, use_db: bool = True):
         """
         初始化调度器
 
         Args:
             config_path: 配置文件路径（默认: config/sync_config.yaml）
+            use_db: 是否使用数据库持久化（默认: True）
         """
         self.config_path = config_path or "config/sync_config.yaml"
         self.scheduler: Optional[AsyncIOScheduler] = None
@@ -65,6 +68,7 @@ class SyncScheduler:
             SyncSource.JIRA: asyncio.Lock(),
             SyncSource.CONFLUENCE: asyncio.Lock(),
         }
+        self.use_db = use_db  # 是否启用数据库持久化
 
     # ========================================================================
     # 生命周期管理
@@ -365,10 +369,21 @@ class SyncScheduler:
             return
 
         try:
+            # 持久化任务记录（创建）
+            if self.use_db:
+                await self._persist_task_start(task)
+
             # 获取配置
             config_obj = self.configs.get(task.source)
             if not config_obj:
                 raise SyncSchedulerError(f"Config not found for source: {task.source}")
+
+            # 获取上次同步时间（用于增量同步）
+            last_sync_time = None
+            if task.sync_type == SyncType.INCREMENTAL:
+                last_sync_time = await self.get_last_sync_time(task.source)
+                if last_sync_time:
+                    logger.info(f"Last sync time for {task.source}: {last_sync_time}")
 
             # 准备配置参数
             config_params = {
@@ -383,7 +398,7 @@ class SyncScheduler:
 
             # 创建同步任务实例
             from .tasks import create_sync_task
-            sync_task = create_sync_task(task, config_params)
+            sync_task = create_sync_task(task, config_params, last_sync_time)
 
             logger.info(f"Executing sync task: {task_id}")
 
@@ -392,6 +407,10 @@ class SyncScheduler:
 
             # 更新任务对象
             self.tasks[task_id] = updated_task
+
+            # 持久化任务记录（更新）
+            if self.use_db:
+                await self._persist_task_complete(updated_task)
 
             logger.info(
                 f"Sync task finished: {task_id}, "
@@ -406,6 +425,10 @@ class SyncScheduler:
             task.error_message = str(e)
             task.duration_seconds = int((task.end_time - task.start_time).total_seconds()) if task.start_time else 0
             logger.error(f"Sync task failed: {task_id}, error={e}")
+
+            # 持久化失败记录
+            if self.use_db:
+                await self._persist_task_complete(task)
 
         finally:
             # 从运行列表中移除
@@ -457,6 +480,73 @@ class SyncScheduler:
 
         logger.info(f"Task cancelled: {task_id}")
         return True
+
+    # ========================================================================
+    # 数据持久化
+    # ========================================================================
+
+    async def _persist_task_start(self, task: SyncTask):
+        """
+        持久化任务开始记录
+
+        Args:
+            task: 同步任务
+        """
+        try:
+            async with async_session_factory() as session:
+                repo = SyncHistoryRepo(session)
+                await repo.create(task)
+                logger.debug(f"Persisted task start: {task.task_id}")
+        except Exception as e:
+            logger.error(f"Failed to persist task start: {e}")
+            # 持久化失败不应该影响任务执行
+
+    async def _persist_task_complete(self, task: SyncTask):
+        """
+        持久化任务完成记录
+
+        Args:
+            task: 同步任务
+        """
+        try:
+            async with async_session_factory() as session:
+                repo = SyncHistoryRepo(session)
+                await repo.update(task)
+
+                # 如果任务成功完成，更新配置表中的上次同步时间
+                if task.status == SyncStatus.COMPLETED and task.end_time:
+                    config_repo = SyncConfigRepo(session)
+                    await config_repo.update_last_sync(
+                        task.source,
+                        task.end_time,
+                        task.task_id
+                    )
+
+                logger.debug(f"Persisted task complete: {task.task_id}")
+        except Exception as e:
+            logger.error(f"Failed to persist task complete: {e}")
+
+    async def get_last_sync_time(self, source: SyncSource) -> Optional[datetime]:
+        """
+        获取指定数据源的上次同步时间
+
+        Args:
+            source: 数据源
+
+        Returns:
+            上次同步时间，如果未找到则返回 None
+        """
+        if not self.use_db:
+            return None
+
+        try:
+            async with async_session_factory() as session:
+                config_repo = SyncConfigRepo(session)
+                config = await config_repo.get_by_source(source)
+                return config.last_sync_time if config else None
+        except Exception as e:
+            logger.error(f"Failed to get last sync time: {e}")
+            return None
 
     # ========================================================================
     # 状态查询

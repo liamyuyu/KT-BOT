@@ -40,7 +40,8 @@ class BaseSyncTask(ABC):
         task: SyncTask,
         batch_size: int = 50,
         retry_attempts: int = 3,
-        retry_delay: int = 60
+        retry_delay: int = 60,
+        last_sync_time: Optional[datetime] = None
     ):
         """
         初始化同步任务
@@ -50,12 +51,14 @@ class BaseSyncTask(ABC):
             batch_size: 批量处理大小
             retry_attempts: 重试次数
             retry_delay: 重试延迟（秒）
+            last_sync_time: 上次同步时间（用于增量同步）
         """
         self.task = task
         self.batch_size = batch_size
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
         self._cancelled = False
+        self._last_sync_time = last_sync_time
 
     @abstractmethod
     async def fetch_items(
@@ -233,8 +236,12 @@ class BaseSyncTask(ABC):
         Returns:
             上次同步时间，如果是首次同步则返回 None
         """
-        # TODO: 从数据库查询上次成功同步的时间
-        # 这里暂时返回 7 天前作为默认值
+        # 使用初始化时传入的上次同步时间
+        # 如果为 None，表示是首次同步或全量同步
+        if self._last_sync_time:
+            return self._last_sync_time
+
+        # 如果没有上次同步时间，默认同步最近 7 天的数据
         return datetime.now() - timedelta(days=7)
 
     def _calculate_duration(self):
@@ -262,6 +269,7 @@ class JiraSyncTask(BaseSyncTask):
         batch_size: int = 50,
         retry_attempts: int = 3,
         retry_delay: int = 60,
+        last_sync_time: Optional[datetime] = None,
         jira_client: Optional[JiraClient] = None,
         project_key: Optional[str] = None,
         jql: Optional[str] = None
@@ -274,11 +282,12 @@ class JiraSyncTask(BaseSyncTask):
             batch_size: 批量处理大小
             retry_attempts: 重试次数
             retry_delay: 重试延迟（秒）
+            last_sync_time: 上次同步时间（用于增量同步）
             jira_client: Jira 客户端（默认使用全局实例）
             project_key: 项目 KEY（可选，如不指定则同步所有项目）
             jql: 自定义 JQL 查询（可选）
         """
-        super().__init__(task, batch_size, retry_attempts, retry_delay)
+        super().__init__(task, batch_size, retry_attempts, retry_delay, last_sync_time)
         self.jira_client = jira_client or get_jira_client()
         self.project_key = project_key
         self.jql = jql
@@ -452,6 +461,7 @@ class ConfluenceSyncTask(BaseSyncTask):
         batch_size: int = 30,
         retry_attempts: int = 3,
         retry_delay: int = 60,
+        last_sync_time: Optional[datetime] = None,
         confluence_client: Optional[ConfluenceClient] = None,
         space_key: Optional[str] = None,
         cql: Optional[str] = None
@@ -464,11 +474,12 @@ class ConfluenceSyncTask(BaseSyncTask):
             batch_size: 批量处理大小
             retry_attempts: 重试次数
             retry_delay: 重试延迟（秒）
+            last_sync_time: 上次同步时间（用于增量同步）
             confluence_client: Confluence 客户端（默认使用全局实例）
             space_key: Space KEY（可选，如不指定则同步所有 Space）
             cql: 自定义 CQL 查询（可选）
         """
-        super().__init__(task, batch_size, retry_attempts, retry_delay)
+        super().__init__(task, batch_size, retry_attempts, retry_delay, last_sync_time)
         self.confluence_client = confluence_client or get_confluence_client()
         self.space_key = space_key
         self.cql = cql
@@ -606,13 +617,14 @@ class ConfluenceSyncTask(BaseSyncTask):
 # 工厂函数
 # ============================================================================
 
-def create_sync_task(task: SyncTask, config: Dict[str, Any]) -> BaseSyncTask:
+def create_sync_task(task: SyncTask, config: Dict[str, Any], last_sync_time: Optional[datetime] = None) -> BaseSyncTask:
     """
     创建同步任务实例（工厂方法）
 
     Args:
         task: 同步任务对象
         config: 配置参数
+        last_sync_time: 上次同步时间（用于增量同步）
 
     Returns:
         同步任务实例
@@ -626,6 +638,7 @@ def create_sync_task(task: SyncTask, config: Dict[str, Any]) -> BaseSyncTask:
             batch_size=config.get("batch_size", 50),
             retry_attempts=config.get("retry_attempts", 3),
             retry_delay=config.get("retry_delay", 60),
+            last_sync_time=last_sync_time,
             project_key=config.get("project_key"),
             jql=config.get("jql"),
         )
@@ -635,6 +648,7 @@ def create_sync_task(task: SyncTask, config: Dict[str, Any]) -> BaseSyncTask:
             batch_size=config.get("batch_size", 30),
             retry_attempts=config.get("retry_attempts", 3),
             retry_delay=config.get("retry_delay", 60),
+            last_sync_time=last_sync_time,
             space_key=config.get("space_key"),
             cql=config.get("cql"),
         )

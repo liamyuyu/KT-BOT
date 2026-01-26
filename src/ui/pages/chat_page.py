@@ -276,8 +276,8 @@ class ChatPage:
     def user_input_handler(
         self,
         message: str,
-        history: List[Tuple[str, str]]
-    ) -> Tuple[str, List[Tuple[str, str]]]:
+        history: List[dict]
+    ) -> Tuple[str, List[dict]]:
         """
         处理用户输入
 
@@ -291,15 +291,15 @@ class ChatPage:
         if not message or not message.strip():
             return message, history
 
-        # 添加用户消息到历史
+        # 添加用户消息到历史（messages format）
         history = history or []
-        history.append([message.strip(), None])
+        history.append({"role": "user", "content": message.strip()})
 
         return "", history
 
     async def bot_response_handler(
         self,
-        history: List[Tuple[str, str]],
+        history: List[dict],
         session_id: Optional[str],
         model_name: str,
         enable_rag: bool,
@@ -311,7 +311,7 @@ class ChatPage:
         bm25_weight: float = 0.5,
         enable_reranking: bool = True,
         rerank_top_k: int = 10
-    ) -> Tuple[List[Tuple[str, str]], str, str]:
+    ) -> Tuple[List[dict], str, str]:
         """
         处理机器人响应（流式）
 
@@ -332,11 +332,12 @@ class ChatPage:
         Returns:
             (更新后的历史, 会话ID, 状态信息)
         """
-        if not history or history[-1][1] is not None:
+        # Check if there's a user message without a response
+        if not history or history[-1].get("role") != "user":
             yield history, session_id, "无待处理消息"
             return
 
-        user_message = history[-1][0]
+        user_message = history[-1]["content"]
         assistant_message = ""
         rag_contexts = []
         status = "生成中..."
@@ -364,6 +365,9 @@ class ChatPage:
                     # 更新会话 ID
                     session_id = data.get("session_id", session_id)
                     status = "正在生成..."
+                    # Add assistant message placeholder if not exists
+                    if len(history) == 0 or history[-1].get("role") != "assistant":
+                        history.append({"role": "assistant", "content": ""})
 
                 elif event_type == "context":
                     # RAG 检索结果 - 保存以便后续格式化
@@ -380,7 +384,7 @@ class ChatPage:
                         assistant_message,
                         rag_contexts if rag_contexts else None
                     )
-                    history[-1][1] = formatted_response
+                    history[-1]["content"] = formatted_response
 
                     # 实时更新 UI
                     yield history, session_id, status
@@ -391,7 +395,7 @@ class ChatPage:
                         assistant_message,
                         rag_contexts if rag_contexts else None
                     )
-                    history[-1][1] = formatted_response
+                    history[-1]["content"] = formatted_response
 
                     model = data.get("model", "unknown")
                     token_count = data.get("token_count", 0)
@@ -401,14 +405,20 @@ class ChatPage:
                 elif event_type == "error":
                     # 错误处理
                     error_msg = data.get("message", "未知错误")
-                    history[-1][1] = f"❌ **错误**: {error_msg}"
+                    if len(history) > 0 and history[-1].get("role") == "assistant":
+                        history[-1]["content"] = f"❌ **错误**: {error_msg}"
+                    else:
+                        history.append({"role": "assistant", "content": f"❌ **错误**: {error_msg}"})
                     status = f"错误: {error_msg}"
                     yield history, session_id, status
                     return
 
         except Exception as e:
             logger.error(f"Bot response error: {e}", exc_info=True)
-            history[-1][1] = f"❌ **系统错误**: {str(e)}"
+            if len(history) > 0 and history[-1].get("role") == "assistant":
+                history[-1]["content"] = f"❌ **系统错误**: {str(e)}"
+            else:
+                history.append({"role": "assistant", "content": f"❌ **系统错误**: {str(e)}"})
             status = f"错误: {str(e)}"
 
         yield history, session_id, status
@@ -481,7 +491,7 @@ class ChatPage:
     async def clear_history_handler(
         self,
         session_id: Optional[str]
-    ) -> Tuple[List, None, str]:
+    ) -> Tuple[List[dict], None, str]:
         """
         清空对话历史
 
