@@ -12,9 +12,201 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [未发布]
 
-> 对应 **Sprint 3-4** 计划中的任务，详见 [SPRINTS.md](./SPRINTS.md)
+> 对应 **Sprint 5** 计划中的任务，详见 [SPRINTS.md](./SPRINTS.md)
 
 ### Added / 新增
+
+#### 2026-01-28 - Sprint 4: 数据同步和搜索 (100% Complete) ✅
+
+**Sprint 4 Overview** - 35 story points, 100% completion
+- ✅ Story 2.3: 数据同步调度器 (5点)
+- ✅ Story 4.5: 搜索功能 (10点)
+- ✅ Story 4.6: 模型切换 UI (5点)
+- ✅ Story 4.7: 同步状态显示 (8点)
+- ✅ 测试改进: 覆盖率提升 20% (额外工作)
+
+**代码统计**:
+- 新增文件: 10+ 个
+- 生产代码: ~2,800 行
+- 测试代码: +625 行
+- API 端点: +15 个
+- UI 页面: +3 个
+- 测试用例: +30 个
+- 测试覆盖率: 35% → 55%
+
+**详细文档**:
+- docs/STORY_4.5_COMPLETION_SUMMARY.md - 搜索功能完成总结
+- docs/STORY_4.6_COMPLETION_SUMMARY.md - 模型切换完成总结
+- docs/STORY_4.7_COMPLETION_SUMMARY.md - 同步状态完成总结
+- docs/SPRINT4_COMPLETION_SUMMARY.md - Sprint 4 总体总结
+- docs/SPRINT4_TEST_COVERAGE.md - 测试覆盖率报告
+- docs/SPRINT4_TEST_IMPROVEMENTS.md - 测试改进报告
+
+---
+
+**Story 4.7: 同步状态显示** (8点 - 完成)
+- ✅ **Phase 1: SSE 实时推送**
+  - 创建 2 个 SSE 端点（~150行）
+    - GET `/api/v1/sync/progress/stream/{task_id}` - 单任务进度流
+    - GET `/api/v1/sync/progress/stream` - 所有任务进度流
+  - Server-Sent Events 完整实现
+  - 1秒刷新间隔，实时性强
+  - 支持 progress 和 complete 事件
+
+- ✅ **Phase 2: 同步管理 UI**
+  - 创建 `src/ui/pages/sync_page.py` 同步管理页面（~700行）
+  - 功能包括：
+    - 🎮 手动触发同步（Jira/Confluence，全量/增量）
+    - 📊 调度器状态监控
+    - 🏃 运行中任务实时展示（带进度条）
+    - 📜 最近同步历史（最近10条）
+    - 📈 同步统计（7天数据）
+    - ⚙️ 同步配置查看和重载
+    - 📝 操作日志
+
+- ✅ **Phase 3: API 客户端扩展**
+  - `src/ui/utils/api_client.py` 添加 7 个同步方法
+    - trigger_sync(), get_scheduler_status()
+    - get_sync_config(), reload_sync_config()
+    - get_running_tasks(), get_sync_history()
+    - get_sync_statistics()
+
+- ✅ **测试**
+  - 创建 `tests/unit/api/test_sync_api.py`（19个测试）
+  - 测试覆盖：SSE 端点、配置管理、触发同步、状态查询
+  - 发现并修复：SyncTask error_code 兼容性问题
+
+**代码统计**:
+- 新增代码: ~900 行
+- 新增文件: 2 个
+- 修改文件: 2 个
+- 测试用例: 19 个
+
+---
+
+**Story 4.6: 模型切换 UI** (5点 - 完成)
+- ✅ **Phase 1: LLM Manager 扩展**
+  - 扩展 `src/core/llm/manager.py` 支持模型切换
+  - 添加方法：
+    - get_current_llm_model(), get_current_embedding_model()
+    - switch_llm_model(), switch_embedding_model()
+    - check_model_health()
+  - 支持动态切换，无需重启系统
+
+- ✅ **Phase 2: API 端点**
+  - 扩展 `src/api/routes/models.py`（4个端点）
+    - POST `/api/v1/models/switch-llm` - 切换 LLM 模型
+    - POST `/api/v1/models/switch-embedding` - 切换 Embedding 模型
+    - GET `/api/v1/models/list` - 获取模型列表（增强）
+    - GET `/api/v1/models/status` - 模型状态（含健康检查）
+
+- ✅ **Phase 3: 设置页面 UI**
+  - 创建 `src/ui/pages/settings_page.py` 设置页面
+  - 功能包括：
+    - 🤖 LLM 模型下拉选择器
+    - 🔤 Embedding 模型下拉选择器
+    - ✅ 健康状态显示
+    - 🔄 切换按钮和健康检查按钮
+    - 📝 操作日志
+
+- ✅ **测试和修复**
+  - 测试：`tests/unit/api/test_models_api.py`（9个测试）
+  - **Bug 修复**: HTTPException 处理错误
+    - 问题：不支持的模型返回 500 而不是 400
+    - 修复：添加 `except HTTPException: raise`
+    - 结果：9/9 测试全部通过（从 7/9 提升）
+
+**代码统计**:
+- 新增代码: ~500 行
+- 新增文件: 1 个
+- 修改文件: 3 个
+- 测试用例: 9 个
+
+---
+
+**Story 4.5: 搜索功能** (10点 - 完成)
+- ✅ **Phase 1: 文档搜索引擎**
+  - 创建 `src/services/search/` 搜索服务模块
+    - `document_search.py` - DocumentSearchEngine 核心类（~350行）
+    - `models.py` - 搜索数据模型（SearchQuery, SearchResult, SearchResponse）
+  - 支持 3 种搜索方法：
+    - Vector Search - 基于语义相似度
+    - BM25 Search - 基于关键词匹配
+    - Hybrid Search - 融合两种方法
+  - 关键功能：
+    - 关键词高亮（不区分大小写，上下文片段提取）
+    - 分页功能（page, page_size, total_pages）
+    - 过滤器集成（来源、文档类型、时间范围）
+    - 自动回退机制（BM25/Hybrid → Vector）
+
+- ✅ **Phase 2: 搜索 API**
+  - 创建 `src/api/routes/search.py` 搜索 API（3个端点）
+    - POST `/api/v1/search/documents` - 搜索文档
+    - GET `/api/v1/search/methods` - 获取搜索方法列表
+    - GET `/api/v1/search/stats` - 获取搜索统计
+  - 完整的请求/响应模型
+  - 错误处理和日志记录
+
+- ✅ **Phase 3: 搜索 UI**
+  - 创建 `src/ui/pages/search_page.py` 搜索页面（~400行）
+  - 功能包括：
+    - 🔍 搜索输入框和按钮
+    - 🔧 搜索选项面板（方法、结果数量、高亮开关、过滤条件）
+    - 📊 搜索结果展示（美观的结果卡片，来源图标，相关度）
+    - 📄 分页控制（上一页/下一页）
+    - 📈 搜索统计信息
+
+- ✅ **Phase 4: 测试**
+  - 单元测试：`tests/unit/services/test_document_search.py`（10个测试）
+  - API 测试：`tests/unit/api/test_search_api.py`（11个测试）
+  - 测试覆盖：向量搜索、高亮、分页、过滤、API 端点
+  - 结果：21/21 测试全部通过
+
+**代码统计**:
+- 新增代码: ~1,400 行
+- 新增文件: 5 个
+- 修改文件: 3 个
+- 测试用例: 21 个
+
+---
+
+**测试改进** (额外工作 - 完成)
+- ✅ **修复失败测试**
+  - 修复 `tests/unit/api/test_models_api.py` 中 2 个失败测试
+  - 问题：HTTPException 被错误捕获
+  - 修复：添加 `except HTTPException: raise`
+  - 结果：9/9 测试全部通过
+
+- ✅ **新增同步 API 测试**
+  - 创建 `tests/unit/api/test_sync_api.py`（19个测试，~395行）
+  - 测试类别：
+    - TestSSEEndpoints - SSE 端点测试（4个）
+    - TestSyncConfigAPI - 配置管理测试（6个）
+    - TestTriggerSyncAPI - 触发同步测试（4个）
+    - TestSyncStatusAPI - 状态查询测试（5个）
+  - 发现并修复：
+    - Mock 数据类型错误
+    - SyncTask 缺少 error_code 属性
+
+- ✅ **新增搜索 API 测试**
+  - 创建 `tests/unit/api/test_search_api.py`（11个测试，~230行）
+  - 测试类别：
+    - TestSearchAPI - 搜索 API 测试（8个）
+    - TestSearchMethods - 搜索方法测试（3个）
+  - 覆盖：搜索文档、过滤、分页、错误处理
+
+- ✅ **测试覆盖率提升**
+  - 改进前：19 测试，89.5% 通过率，~35% 覆盖率
+  - 改进后：49+ 测试，100% 通过率，~55% 覆盖率
+  - 提升：+30 测试，+10.5% 通过率，+20% 覆盖率
+
+**代码统计**:
+- 新增测试文件: 2 个
+- 新增测试代码: +625 行
+- 修改源代码: 2 个文件（+7行，bug 修复）
+- 测试用例: +30 个
+
+---
 
 #### 2026-01-27 - Sprint 4 Story 2.3: Data Sync Scheduler (100% Complete) ✅
 
