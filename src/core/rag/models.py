@@ -390,3 +390,191 @@ class RerankerResult(BaseModel):
             }
         }
     )
+
+
+class TimeRange(BaseModel):
+    """
+    时间范围模型
+    用于时间过滤
+    """
+    start: Optional[datetime] = Field(None, description="开始时间")
+    end: Optional[datetime] = Field(None, description="结束时间")
+    preset: Optional[str] = Field(None, description="预设时间范围（1d/7d/30d/90d/custom）")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "preset": "7d"
+            }
+        }
+    )
+
+    def to_filter_dict(self, field_name: str = "created_at") -> Dict[str, Any]:
+        """
+        转换为 ChromaDB where 子句格式
+
+        Args:
+            field_name: 要过滤的时间字段名（默认：created_at）
+
+        Returns:
+            ChromaDB where 子句字典
+        """
+        from datetime import timedelta
+
+        now = datetime.now()
+
+        # 如果使用预设时间范围
+        if self.preset:
+            if self.preset == "1d":
+                start_time = now - timedelta(days=1)
+            elif self.preset == "7d":
+                start_time = now - timedelta(days=7)
+            elif self.preset == "30d":
+                start_time = now - timedelta(days=30)
+            elif self.preset == "90d":
+                start_time = now - timedelta(days=90)
+            else:
+                # custom 或未知预设，使用 start/end
+                start_time = self.start
+                end_time = self.end
+                if start_time is None and end_time is None:
+                    return {}
+                filters = {}
+                if start_time:
+                    filters[field_name] = {"$gte": start_time.isoformat()}
+                if end_time:
+                    if field_name in filters:
+                        filters["$and"] = [
+                            {field_name: filters[field_name]},
+                            {field_name: {"$lte": end_time.isoformat()}}
+                        ]
+                    else:
+                        filters[field_name] = {"$lte": end_time.isoformat()}
+                return filters
+
+            return {field_name: {"$gte": start_time.isoformat()}}
+
+        # 使用自定义时间范围
+        if self.start is None and self.end is None:
+            return {}
+
+        filters = {}
+        if self.start:
+            filters[field_name] = {"$gte": self.start.isoformat()}
+        if self.end:
+            if field_name in filters:
+                filters["$and"] = [
+                    {field_name: filters[field_name]},
+                    {field_name: {"$lte": self.end.isoformat()}}
+                ]
+            else:
+                filters[field_name] = {"$lte": self.end.isoformat()}
+
+        return filters
+
+
+class FilterConfig(BaseModel):
+    """
+    过滤配置模型
+    用于检索时的结果过滤
+    """
+    sources: Optional[List[str]] = Field(
+        None,
+        description="来源过滤（jira/confluence/local）"
+    )
+    time_range: Optional[TimeRange] = Field(
+        None,
+        description="时间范围过滤"
+    )
+    doc_types: Optional[List[str]] = Field(
+        None,
+        description="文档类型过滤（issue/page/document）"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description="元数据过滤（如 priority/status/project_key）"
+    )
+    logic: str = Field(
+        "AND",
+        description="多条件组合逻辑（AND/OR）"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "sources": ["jira", "confluence"],
+                "time_range": {"preset": "7d"},
+                "doc_types": ["issue"],
+                "metadata": {
+                    "priority": "High",
+                    "status": "Open"
+                },
+                "logic": "AND"
+            }
+        }
+    )
+
+    def to_chroma_where(self) -> Optional[Dict[str, Any]]:
+        """
+        转换为 ChromaDB where 子句格式
+
+        Returns:
+            ChromaDB where 子句字典，如果没有过滤条件则返回 None
+        """
+        conditions = []
+
+        # 来源过滤
+        if self.sources and len(self.sources) > 0:
+            if len(self.sources) == 1:
+                conditions.append({"source": self.sources[0]})
+            else:
+                conditions.append({"source": {"$in": self.sources}})
+
+        # 时间范围过滤
+        if self.time_range:
+            time_filter = self.time_range.to_filter_dict("created_at")
+            if time_filter:
+                conditions.append(time_filter)
+
+        # 文档类型过滤
+        if self.doc_types and len(self.doc_types) > 0:
+            if len(self.doc_types) == 1:
+                conditions.append({"doc_type": self.doc_types[0]})
+            else:
+                conditions.append({"doc_type": {"$in": self.doc_types}})
+
+        # 元数据过滤
+        if self.metadata:
+            for key, value in self.metadata.items():
+                if isinstance(value, list):
+                    conditions.append({key: {"$in": value}})
+                else:
+                    conditions.append({key: value})
+
+        # 如果没有任何条件，返回 None
+        if not conditions:
+            return None
+
+        # 如果只有一个条件，直接返回
+        if len(conditions) == 1:
+            return conditions[0]
+
+        # 多个条件，根据 logic 组合
+        if self.logic.upper() == "OR":
+            return {"$or": conditions}
+        else:  # 默认 AND
+            return {"$and": conditions}
+
+    def is_empty(self) -> bool:
+        """
+        检查是否为空过滤（没有任何过滤条件）
+
+        Returns:
+            bool: True 表示没有任何过滤条件
+        """
+        return (
+            not self.sources and
+            not self.time_range and
+            not self.doc_types and
+            not self.metadata
+        )
