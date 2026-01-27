@@ -5,10 +5,13 @@
 """
 
 import logging
+import asyncio
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, Path
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+import json
 
 from src.services.sync import get_sync_scheduler, SyncSource, SyncStatus, SyncType
 from src.services.sync.exceptions import (
@@ -535,3 +538,147 @@ async def get_scheduler_status():
     except Exception as e:
         logger.error(f"Failed to get scheduler status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# 同步进度推送 API (SSE)
+# ============================================================================
+
+@router.get(
+    "/progress/stream/{task_id}",
+    summary="实时同步进度流",
+    description="使用 SSE 实时推送指定任务的同步进度",
+)
+async def stream_task_progress(
+    task_id: str = Path(..., description="任务ID")
+):
+    """
+    流式推送任务进度
+
+    Returns:
+        SSE stream with progress updates
+    """
+    async def event_generator():
+        """生成 SSE 事件"""
+        try:
+            scheduler = get_sync_scheduler()
+
+            # 检查任务是否存在
+            task = await scheduler.get_task(task_id)
+            if not task:
+                yield f"event: error\ndata: {json.dumps({'error': 'Task not found'})}\n\n"
+                return
+
+            # 持续推送进度直到任务完成
+            while True:
+                task = await scheduler.get_task(task_id)
+
+                if not task:
+                    yield f"event: error\ndata: {json.dumps({'error': 'Task not found'})}\n\n"
+                    break
+
+                # 构建进度数据
+                progress_data = {
+                    "task_id": task.task_id,
+                    "status": task.status.value,
+                    "progress_percentage": task.progress_percentage,
+                    "synced_items": task.synced_items,
+                    "total_items": task.total_items,
+                    "failed_items": task.failed_items,
+                    "current_batch": getattr(task, 'current_batch', 0),
+                    "total_batches": getattr(task, 'total_batches', 0),
+                    "duration_seconds": task.duration_seconds,
+                    "error_message": task.error_message,
+                }
+
+                # 发送进度事件
+                yield f"event: progress\ndata: {json.dumps(progress_data)}\n\n"
+
+                # 如果任务已完成，发送完成事件并退出
+                if task.status in [SyncStatus.COMPLETED, SyncStatus.FAILED, SyncStatus.CANCELLED]:
+                    yield f"event: complete\ndata: {json.dumps(progress_data)}\n\n"
+                    break
+
+                # 等待一段时间再获取下次进度
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            logger.error(f"Error streaming progress for task {task_id}: {e}")
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 禁用 Nginx 缓冲
+        }
+    )
+
+
+@router.get(
+    "/progress/stream",
+    summary="实时所有任务进度流",
+    description="使用 SSE 实时推送所有运行中任务的进度",
+)
+async def stream_all_progress():
+    """
+    流式推送所有运行中任务的进度
+
+    Returns:
+        SSE stream with progress updates for all running tasks
+    """
+    async def event_generator():
+        """生成 SSE 事件"""
+        try:
+            scheduler = get_sync_scheduler()
+
+            while True:
+                # 获取所有运行中的任务
+                running_tasks = await scheduler.get_running_tasks()
+
+                if not running_tasks:
+                    # 如果没有运行中的任务，发送空列表
+                    yield f"event: progress\ndata: {json.dumps({'tasks': []})}\n\n"
+                    await asyncio.sleep(2)
+                    continue
+
+                # 构建所有任务的进度数据
+                tasks_data = []
+                for task in running_tasks:
+                    progress_data = {
+                        "task_id": task.task_id,
+                        "source": task.source.value,
+                        "sync_type": task.sync_type.value,
+                        "status": task.status.value,
+                        "progress_percentage": task.progress_percentage,
+                        "synced_items": task.synced_items,
+                        "total_items": task.total_items,
+                        "failed_items": task.failed_items,
+                        "current_batch": getattr(task, 'current_batch', 0),
+                        "total_batches": getattr(task, 'total_batches', 0),
+                        "duration_seconds": task.duration_seconds,
+                        "start_time": task.start_time.isoformat() if task.start_time else None,
+                    }
+                    tasks_data.append(progress_data)
+
+                # 发送进度事件
+                yield f"event: progress\ndata: {json.dumps({'tasks': tasks_data})}\n\n"
+
+                # 等待一段时间再获取下次进度
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            logger.error(f"Error streaming all progress: {e}")
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )

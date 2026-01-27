@@ -635,6 +635,198 @@ class ChatAPIClient:
                 }
             }
 
+    # ========================================================================
+    # 同步管理 API
+    # ========================================================================
+
+    async def trigger_sync(
+        self,
+        source: str,
+        sync_type: str = "incremental",
+        created_by: str = "ui"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        触发同步任务
+
+        Args:
+            source: 数据源 (jira/confluence)
+            sync_type: 同步类型 (full/incremental)
+            created_by: 创建者
+
+        Returns:
+            触发结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/trigger/{source}"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    url,
+                    json={
+                        "sync_type": sync_type,
+                        "created_by": created_by
+                    }
+                )
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Trigger sync failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Trigger sync failed: {e}")
+            return None
+
+    async def get_scheduler_status(self) -> Optional[Dict[str, Any]]:
+        """
+        获取调度器状态
+
+        Returns:
+            调度器状态信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/scheduler/status"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get scheduler status failed: {e}")
+            return None
+
+    async def get_sync_config(self, source: str) -> Optional[Dict[str, Any]]:
+        """
+        获取同步配置
+
+        Args:
+            source: 数据源 (jira/confluence)
+
+        Returns:
+            配置信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/config/{source}"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get sync config failed: {e}")
+            return None
+
+    async def reload_sync_config(self) -> Optional[Dict[str, Any]]:
+        """
+        重新加载同步配置
+
+        Returns:
+            操作结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/config/reload"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Reload sync config failed: {e}")
+            return None
+
+    async def get_running_tasks(self) -> Optional[Dict[str, Any]]:
+        """
+        获取运行中的任务
+
+        Returns:
+            运行中的任务列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/status/running"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get running tasks failed: {e}")
+            return None
+
+    async def get_sync_history(
+        self,
+        source: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取同步历史记录
+
+        Args:
+            source: 数据源过滤
+            status: 状态过滤
+            page: 页码
+            page_size: 每页大小
+
+        Returns:
+            历史记录列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/history"
+
+        params = {
+            "page": page,
+            "page_size": page_size
+        }
+        if source:
+            params["source"] = source
+        if status:
+            params["status"] = status
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get sync history failed: {e}")
+            return None
+
+    async def get_sync_statistics(
+        self,
+        source: Optional[str] = None,
+        days: int = 7
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取同步统计信息
+
+        Args:
+            source: 数据源
+            days: 统计最近N天
+
+        Returns:
+            统计信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/statistics"
+
+        params = {"days": days}
+        if source:
+            params["source"] = source
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get sync statistics failed: {e}")
+            return None
+
 
 # 全局客户端实例
 _client: Optional[ChatAPIClient] = None
