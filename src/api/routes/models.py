@@ -4,7 +4,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.core.llm.manager import get_llm_manager
 from src.constants import SUPPORTED_LLM_MODELS, SUPPORTED_EMBEDDING_MODELS
@@ -17,11 +17,15 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 class SwitchLLMRequest(BaseModel):
     """切换 LLM 模型请求"""
+    model_config = ConfigDict(protected_namespaces=())
+
     model_name: str
 
 
 class SwitchEmbeddingRequest(BaseModel):
     """切换 Embedding 模型请求"""
+    model_config = ConfigDict(protected_namespaces=())
+
     model_name: str
 
 

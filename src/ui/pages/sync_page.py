@@ -173,8 +173,7 @@ class SyncPage:
                     label="📝 操作日志",
                     lines=3,
                     max_lines=5,
-                    interactive=False,
-                    show_copy_button=True
+                    interactive=False
                 )
 
             # ========================================================================
