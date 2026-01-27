@@ -549,6 +549,92 @@ class ChatAPIClient:
             logger.error(f"Get document stats failed: {e}")
             return None
 
+    # ============ 搜索 API (Story 4.5) ============
+
+    async def search_documents(
+        self,
+        query: str,
+        method: str = "hybrid",
+        top_k: int = 10,
+        page: int = 1,
+        page_size: int = 10,
+        sources: Optional[List[str]] = None,
+        doc_types: Optional[List[str]] = None,
+        time_range: Optional[str] = None,
+        enable_highlight: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        搜索文档
+
+        Args:
+            query: 搜索查询
+            method: 搜索方法（vector/bm25/hybrid）
+            top_k: 返回结果数量
+            page: 页码
+            page_size: 每页大小
+            sources: 来源过滤
+            doc_types: 文档类型过滤
+            time_range: 时间范围过滤
+            enable_highlight: 是否启用关键词高亮
+
+        Returns:
+            搜索结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/search/documents"
+
+        request_data = {
+            "query": query,
+            "method": method,
+            "top_k": top_k,
+            "page": page,
+            "page_size": page_size,
+            "sources": sources,
+            "doc_types": doc_types,
+            "time_range": time_range,
+            "enable_highlight": enable_highlight
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json=request_data)
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Search documents failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Search documents failed: {e}")
+            return None
+
+    async def get_search_methods(self) -> Optional[Dict[str, Any]]:
+        """
+        获取支持的搜索方法列表
+
+        Returns:
+            搜索方法列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/search/methods"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get search methods failed: {e}")
+            return {
+                "data": {
+                    "methods": [
+                        {"value": "hybrid", "label": "混合搜索", "description": "结合向量和全文搜索"},
+                        {"value": "vector", "label": "向量搜索", "description": "基于语义相似度"},
+                        {"value": "bm25", "label": "全文搜索", "description": "基于关键词匹配"}
+                    ],
+                    "default": "hybrid"
+                }
+            }
+
 
 # 全局客户端实例
 _client: Optional[ChatAPIClient] = None
