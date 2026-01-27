@@ -267,8 +267,16 @@ class ChatAPIClient:
             logger.error(f"Clear history failed: {e}")
             return False
 
-    async def get_models(self) -> List[str]:
-        """获取可用模型列表"""
+    async def get_models(self) -> Dict[str, Any]:
+        """
+        获取可用模型列表和当前模型
+
+        Returns:
+            {
+                "models": {"llm": [...], "embedding": [...]},
+                "current": {"llm": "...", "embedding": "..."}
+            }
+        """
         url = f"{self.base_url}{self.api_prefix}/models/list"
 
         try:
@@ -276,12 +284,97 @@ class ChatAPIClient:
                 response = await client.get(url)
                 response.raise_for_status()
                 data = response.json()
-                return data.get("data", {}).get("models", [])
+                return data.get("data", {
+                    "models": {
+                        "llm": ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"],
+                        "embedding": ["nomic-embed-text", "mxbai-embed-large"]
+                    },
+                    "current": {"llm": None, "embedding": None}
+                })
 
         except Exception as e:
             logger.error(f"Get models failed: {e}")
             # 返回默认模型列表
-            return ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"]
+            return {
+                "models": {
+                    "llm": ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"],
+                    "embedding": ["nomic-embed-text", "mxbai-embed-large"]
+                },
+                "current": {"llm": None, "embedding": None}
+            }
+
+    async def get_model_status(self) -> Optional[Dict[str, Any]]:
+        """
+        获取模型状态（包括健康检查）
+
+        Returns:
+            {
+                "current_models": {"llm": "...", "embedding": "..."},
+                "health": {"llm": true, "embedding": true}
+            }
+        """
+        url = f"{self.base_url}{self.api_prefix}/models/status"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("data")
+
+        except Exception as e:
+            logger.error(f"Get model status failed: {e}")
+            return None
+
+    async def switch_llm_model(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        切换 LLM 对话模型
+
+        Args:
+            model_name: 目标模型名称
+
+        Returns:
+            切换结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/models/switch-llm"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json={"model_name": model_name})
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Switch LLM model failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Switch LLM model failed: {e}")
+            return None
+
+    async def switch_embedding_model(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        切换 Embedding 模型
+
+        Args:
+            model_name: 目标模型名称
+
+        Returns:
+            切换结果（包含警告信息）
+        """
+        url = f"{self.base_url}{self.api_prefix}/models/switch-embedding"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json={"model_name": model_name})
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Switch embedding model failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Switch embedding model failed: {e}")
+            return None
 
     # ============ 文档管理 API ============
 
