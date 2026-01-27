@@ -63,7 +63,7 @@ def _task_to_response(task) -> SyncTaskResponse:
         failed_items=task.failed_items,
         progress_percentage=task.progress_percentage,
         error_message=task.error_message,
-        error_code=task.error_code,
+        error_code=getattr(task, 'error_code', None),  # 兼容：SyncTask 没有 error_code
         created_by=task.created_by,
         metadata=task.metadata,
     )

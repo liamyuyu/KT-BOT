@@ -133,6 +133,9 @@ async def switch_llm_model(request: SwitchLLMRequest) -> Dict[str, Any]:
             "message": f"LLM model switched to {request.model_name} successfully"
         }
 
+    except HTTPException:
+        # HTTPException 应该直接抛出，不要被后面的 Exception 捕获
+        raise
     except ValueError as e:
         logger.error(f"Invalid model switch request: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -188,6 +191,9 @@ async def switch_embedding_model(request: SwitchEmbeddingRequest) -> Dict[str, A
                       f"⚠️ Index rebuild required!"
         }
 
+    except HTTPException:
+        # HTTPException 应该直接抛出，不要被后面的 Exception 捕获
+        raise
     except ValueError as e:
         logger.error(f"Invalid embedding model switch request: {e}")
         raise HTTPException(status_code=400, detail=str(e))
