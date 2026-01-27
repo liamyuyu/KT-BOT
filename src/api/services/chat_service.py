@@ -15,6 +15,8 @@ from src.core.rag.retriever.bm25 import get_bm25_retriever, BM25Retriever
 from src.core.rag.retriever.hybrid import get_hybrid_retriever, HybridRetriever
 from src.core.rag import RetrievalConfig, BM25Config, HybridConfig, RetrievalResult
 from src.core.rag import CrossEncoderReranker, get_reranker, RerankerConfig
+from src.core.rag.models import FilterConfig, TimeRange
+from src.core.rag.filters import SourceFilter, TimeRangeFilter, MetadataFilter, CompositeFilter
 from ..schemas.chat import (
     ChatRequest, ChatResponse, ChatMessage,
     RetrievedContext, StreamChunk, ChatHistory
@@ -99,6 +101,9 @@ class ChatService:
                 f"retrieving top {request.rag_top_k} contexts, "
                 f"reranking={'enabled' if request.enable_reranking else 'disabled'}"
             )
+            # 构建过滤配置
+            filter_config = self._build_filter_config(request)
+
             contexts = await self._retrieve_contexts(
                 query=request.message,
                 top_k=request.rag_top_k,
@@ -107,7 +112,8 @@ class ChatService:
                 bm25_weight=request.bm25_weight,
                 fusion_method=request.fusion_method,
                 enable_reranking=request.enable_reranking,
-                rerank_top_k=request.rerank_top_k
+                rerank_top_k=request.rerank_top_k,
+                filter_config=filter_config
             )
             if contexts:
                 retrieved_contexts = contexts
@@ -198,6 +204,7 @@ class ChatService:
             # 2. RAG 检索（如果启用）
             retrieved_contexts = None
             enhanced_prompt = request.message
+            filter_config = None
 
             if request.enable_rag:
                 logger.debug(
@@ -205,6 +212,9 @@ class ChatService:
                     f"retrieving top {request.rag_top_k} contexts, "
                     f"reranking={'enabled' if request.enable_reranking else 'disabled'}"
                 )
+                # 构建过滤配置
+                filter_config = self._build_filter_config(request)
+
                 contexts = await self._retrieve_contexts(
                     query=request.message,
                     top_k=request.rag_top_k,
@@ -213,7 +223,8 @@ class ChatService:
                     bm25_weight=request.bm25_weight,
                     fusion_method=request.fusion_method,
                     enable_reranking=request.enable_reranking,
-                    rerank_top_k=request.rerank_top_k
+                    rerank_top_k=request.rerank_top_k,
+                    filter_config=filter_config
                 )
                 if contexts:
                     retrieved_contexts = contexts
@@ -319,10 +330,11 @@ class ChatService:
         bm25_weight: float = 0.5,
         fusion_method: str = "rrf",
         enable_reranking: bool = True,
-        rerank_top_k: int = 10
+        rerank_top_k: int = 10,
+        filter_config: Optional[FilterConfig] = None
     ) -> List[RetrievedContext]:
         """
-        RAG 检索上下文（支持多种检索策略和重排序）
+        RAG 检索上下文（支持多种检索策略、重排序和过滤）
 
         Args:
             query: 查询文本
@@ -333,6 +345,7 @@ class ChatService:
             fusion_method: 融合方法（rrf/weighted/linear）
             enable_reranking: 是否启用重排序
             rerank_top_k: 重排序前的候选数量
+            filter_config: 过滤配置（可选）
 
         Returns:
             检索到的上下文列表
@@ -341,19 +354,32 @@ class ChatService:
             # 确定检索数量：如果启用重排序，先获取更多候选
             retrieve_k = rerank_top_k if enable_reranking else top_k
 
-            # 根据检索方法选择检索器
+            # 日志记录过滤配置
+            if filter_config and not filter_config.is_empty():
+                logger.info(
+                    f"Applying filters: sources={filter_config.sources}, "
+                    f"time_preset={filter_config.time_range.preset if filter_config.time_range else None}, "
+                    f"doc_types={filter_config.doc_types}"
+                )
+
+            # 根据检索方法选择检索器（传递过滤配置）
             if retrieval_method == "vector":
                 logger.debug("Using vector retriever")
-                results = await self.vector_retriever.retrieve(query, top_k=retrieve_k)
+                results = await self.vector_retriever.retrieve(
+                    query, top_k=retrieve_k, filters=filter_config
+                )
 
             elif retrieval_method == "bm25":
                 logger.debug("Using BM25 retriever")
+                # 注意：BM25 检索器不直接支持 ChromaDB 过滤，只能使用后置过滤
                 results = await self.bm25_retriever.retrieve(query, top_k=retrieve_k)
 
             elif retrieval_method == "hybrid":
                 if self.hybrid_retriever is None:
                     logger.warning("HybridRetriever not available, falling back to vector retriever")
-                    results = await self.vector_retriever.retrieve(query, top_k=retrieve_k)
+                    results = await self.vector_retriever.retrieve(
+                        query, top_k=retrieve_k, filters=filter_config
+                    )
                 else:
                     logger.debug(
                         f"Using hybrid retriever with fusion_method={fusion_method}, "
@@ -365,11 +391,15 @@ class ChatService:
                     self.hybrid_retriever.hybrid_config.vector_weight = vector_weight
                     self.hybrid_retriever.hybrid_config.bm25_weight = bm25_weight
 
-                    results = await self.hybrid_retriever.retrieve(query, top_k=retrieve_k)
+                    results = await self.hybrid_retriever.retrieve(
+                        query, top_k=retrieve_k, filters=filter_config
+                    )
 
             else:
                 logger.warning(f"Unknown retrieval_method: {retrieval_method}, using vector")
-                results = await self.vector_retriever.retrieve(query, top_k=retrieve_k)
+                results = await self.vector_retriever.retrieve(
+                    query, top_k=retrieve_k, filters=filter_config
+                )
 
             logger.info(
                 f"Retrieved {len(results)} candidates using {retrieval_method} method"
@@ -476,6 +506,47 @@ class ChatService:
         except Exception as e:
             logger.error(f"RAG retrieval error: {e}", exc_info=True)
             return []
+
+    def _build_filter_config(self, request: ChatRequest) -> Optional[FilterConfig]:
+        """
+        从 ChatRequest 构建 FilterConfig
+
+        支持两种方式：
+        1. 直接使用 filter_config 字段
+        2. 使用快捷过滤字段（filter_sources, filter_time_preset等）
+
+        Args:
+            request: ChatRequest 对象
+
+        Returns:
+            FilterConfig 对象，如果没有过滤条件则返回 None
+        """
+        # 如果提供了完整的 filter_config，直接使用
+        if request.filter_config:
+            return request.filter_config
+
+        # 否则从快捷字段构建 FilterConfig
+        if not any([
+            request.filter_sources,
+            request.filter_time_preset,
+            request.filter_doc_types,
+            request.filter_metadata
+        ]):
+            return None
+
+        # 构建时间范围
+        time_range = None
+        if request.filter_time_preset:
+            time_range = TimeRange(preset=request.filter_time_preset)
+
+        # 构建 FilterConfig
+        return FilterConfig(
+            sources=request.filter_sources,
+            time_range=time_range,
+            doc_types=request.filter_doc_types,
+            metadata=request.filter_metadata,
+            logic="AND"  # 默认使用 AND 逻辑
+        )
 
     def _build_rag_prompt(
         self,
