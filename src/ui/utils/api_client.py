@@ -49,7 +49,11 @@ class ChatAPIClient:
         vector_weight: float = 0.5,
         bm25_weight: float = 0.5,
         enable_reranking: bool = True,
-        rerank_top_k: int = 10
+        rerank_top_k: int = 10,
+        filter_sources: Optional[List[str]] = None,
+        filter_time_preset: Optional[str] = None,
+        filter_doc_types: Optional[List[str]] = None,
+        filter_metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         非流式对话
@@ -68,6 +72,10 @@ class ChatAPIClient:
             bm25_weight: BM25 检索权重
             enable_reranking: 是否启用重排序
             rerank_top_k: 重排序候选数量
+            filter_sources: 过滤来源（jira/confluence/local）
+            filter_time_preset: 时间范围预设（1d/7d/30d/90d）
+            filter_doc_types: 文档类型过滤
+            filter_metadata: 元数据过滤
 
         Returns:
             响应数据字典
@@ -87,7 +95,11 @@ class ChatAPIClient:
             "vector_weight": vector_weight,
             "bm25_weight": bm25_weight,
             "enable_reranking": enable_reranking,
-            "rerank_top_k": rerank_top_k
+            "rerank_top_k": rerank_top_k,
+            "filter_sources": filter_sources,
+            "filter_time_preset": filter_time_preset,
+            "filter_doc_types": filter_doc_types,
+            "filter_metadata": filter_metadata
         }
 
         try:
@@ -120,7 +132,11 @@ class ChatAPIClient:
         vector_weight: float = 0.5,
         bm25_weight: float = 0.5,
         enable_reranking: bool = True,
-        rerank_top_k: int = 10
+        rerank_top_k: int = 10,
+        filter_sources: Optional[List[str]] = None,
+        filter_time_preset: Optional[str] = None,
+        filter_doc_types: Optional[List[str]] = None,
+        filter_metadata: Optional[Dict[str, Any]] = None
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         流式对话（SSE）
@@ -139,6 +155,10 @@ class ChatAPIClient:
             bm25_weight: BM25 检索权重
             enable_reranking: 是否启用重排序
             rerank_top_k: 重排序候选数量
+            filter_sources: 过滤来源（jira/confluence/local）
+            filter_time_preset: 时间范围预设（1d/7d/30d/90d）
+            filter_doc_types: 文档类型过滤
+            filter_metadata: 元数据过滤
 
         Yields:
             事件字典 {"event": "...", "data": {...}}
@@ -158,7 +178,11 @@ class ChatAPIClient:
             "vector_weight": vector_weight,
             "bm25_weight": bm25_weight,
             "enable_reranking": enable_reranking,
-            "rerank_top_k": rerank_top_k
+            "rerank_top_k": rerank_top_k,
+            "filter_sources": filter_sources,
+            "filter_time_preset": filter_time_preset,
+            "filter_doc_types": filter_doc_types,
+            "filter_metadata": filter_metadata
         }
 
         try:
