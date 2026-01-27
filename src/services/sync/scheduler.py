@@ -58,7 +58,14 @@ class SyncScheduler:
             config_path: 配置文件路径（默认: config/sync_config.yaml）
             use_db: 是否使用数据库持久化（默认: True）
         """
-        self.config_path = config_path or "config/sync_config.yaml"
+        # 将相对路径转换为绝对路径，确保无论工作目录如何变化都能找到配置文件
+        default_config_path = Path(__file__).parent.parent.parent.parent / "config" / "sync_config.yaml"
+        if config_path:
+            config_file = Path(config_path)
+            self.config_path = str(config_file if config_file.is_absolute() else config_file.resolve())
+        else:
+            self.config_path = str(default_config_path)
+
         self.scheduler: Optional[AsyncIOScheduler] = None
         self.configs: Dict[SyncSource, SyncConfig] = {}
         self.tasks: Dict[str, SyncTask] = {}  # task_id -> SyncTask
