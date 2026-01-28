@@ -5,6 +5,8 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
+from src.core.rag.models import FilterConfig
+
 
 # ============ 请求模型 ============
 
@@ -62,6 +64,28 @@ class ChatRequest(BaseModel):
         ge=5,
         le=50,
         description="重排序前的候选数量（先召回 rerank_top_k 个，重排序后返回 rag_top_k 个）"
+    )
+
+    # 过滤参数 (Story 3.7)
+    filter_config: Optional[FilterConfig] = Field(
+        None,
+        description="检索结果过滤配置（按来源、时间范围、文档类型、元数据等过滤）"
+    )
+    filter_sources: Optional[List[str]] = Field(
+        None,
+        description="快捷过滤：按来源过滤（如 ['jira', 'confluence']）"
+    )
+    filter_time_preset: Optional[str] = Field(
+        None,
+        description="快捷过滤：时间预设（1d/7d/30d/90d）"
+    )
+    filter_doc_types: Optional[List[str]] = Field(
+        None,
+        description="快捷过滤：按文档类型过滤（如 ['issue', 'page']）"
+    )
+    filter_metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description="快捷过滤：按元数据过滤（如 {'priority': 'High', 'status': 'Open'}）"
     )
 
 

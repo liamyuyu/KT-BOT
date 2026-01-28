@@ -13,6 +13,9 @@ import gradio as gr
 
 from src.ui.pages.chat_page import create_chat_page
 from src.ui.pages.document_page import create_document_page
+from src.ui.pages.settings_page import create_settings_page
+from src.ui.pages.search_page import create_search_page
+from src.ui.pages.sync_page import create_sync_page
 from src.config import settings
 
 # 创建日志目录
@@ -38,12 +41,15 @@ def create_app() -> gr.Blocks:
 
     # 创建各个页面
     chat_page = create_chat_page()
+    search_page = create_search_page()
+    sync_page = create_sync_page()
     document_page = create_document_page()
+    settings_page = create_settings_page()
 
     # 使用 TabbedInterface 组合多个页面
     demo = gr.TabbedInterface(
-        [chat_page, document_page],
-        ["💬 对话", "📚 文档管理"],
+        [chat_page, search_page, sync_page, document_page, settings_page],
+        ["💬 对话", "🔍 搜索", "🔄 同步", "📚 文档管理", "⚙️ 设置"],
         title="KT-BOT - Enterprise Knowledge Bot"
     )
 

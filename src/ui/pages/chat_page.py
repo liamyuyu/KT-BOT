@@ -121,6 +121,42 @@ class ChatPage:
                                 info="0.0-1.0，仅 weighted/linear 模式使用"
                             )
 
+                    gr.Markdown("---")
+
+                    # 过滤参数 (Story 3.7)
+                    with gr.Accordion("🔍 检索过滤", open=False):
+                        filter_sources = gr.CheckboxGroup(
+                            choices=["jira", "confluence", "local"],
+                            label="数据来源",
+                            info="选择要检索的数据源（留空表示全部）"
+                        )
+                        filter_time_preset = gr.Dropdown(
+                            choices=["不限", "1d", "7d", "30d", "90d"],
+                            value="不限",
+                            label="时间范围",
+                            info="按文档创建时间过滤"
+                        )
+                        filter_doc_types = gr.CheckboxGroup(
+                            choices=["issue", "page", "comment"],
+                            label="文档类型",
+                            info="选择文档类型（留空表示全部）"
+                        )
+                        with gr.Row():
+                            filter_priority = gr.Dropdown(
+                                choices=["不限", "High", "Medium", "Low"],
+                                value="不限",
+                                label="优先级",
+                                info="Jira Issue 优先级"
+                            )
+                            filter_status = gr.Dropdown(
+                                choices=["不限", "Open", "In Progress", "Resolved", "Closed"],
+                                value="不限",
+                                label="状态",
+                                info="Jira Issue 状态"
+                            )
+
+                    gr.Markdown("---")
+
                     # 生成参数
                     temperature = gr.Slider(
                         minimum=0.0,
@@ -207,7 +243,12 @@ class ChatPage:
                     vector_weight,
                     bm25_weight,
                     enable_reranking,
-                    rerank_top_k
+                    rerank_top_k,
+                    filter_sources,
+                    filter_time_preset,
+                    filter_doc_types,
+                    filter_priority,
+                    filter_status
                 ],
                 outputs=[chatbot, session_id_state, status_box],
                 queue=True
@@ -233,7 +274,12 @@ class ChatPage:
                     vector_weight,
                     bm25_weight,
                     enable_reranking,
-                    rerank_top_k
+                    rerank_top_k,
+                    filter_sources,
+                    filter_time_preset,
+                    filter_doc_types,
+                    filter_priority,
+                    filter_status
                 ],
                 outputs=[chatbot, session_id_state, status_box],
                 queue=True
@@ -276,8 +322,8 @@ class ChatPage:
     def user_input_handler(
         self,
         message: str,
-        history: List[Tuple[str, str]]
-    ) -> Tuple[str, List[Tuple[str, str]]]:
+        history: List[dict]
+    ) -> Tuple[str, List[dict]]:
         """
         处理用户输入
 
@@ -291,15 +337,15 @@ class ChatPage:
         if not message or not message.strip():
             return message, history
 
-        # 添加用户消息到历史
+        # 添加用户消息到历史（messages format）
         history = history or []
-        history.append([message.strip(), None])
+        history.append({"role": "user", "content": message.strip()})
 
         return "", history
 
     async def bot_response_handler(
         self,
-        history: List[Tuple[str, str]],
+        history: List[dict],
         session_id: Optional[str],
         model_name: str,
         enable_rag: bool,
@@ -310,8 +356,13 @@ class ChatPage:
         vector_weight: float = 0.5,
         bm25_weight: float = 0.5,
         enable_reranking: bool = True,
-        rerank_top_k: int = 10
-    ) -> Tuple[List[Tuple[str, str]], str, str]:
+        rerank_top_k: int = 10,
+        filter_sources: Optional[List[str]] = None,
+        filter_time_preset: str = "不限",
+        filter_doc_types: Optional[List[str]] = None,
+        filter_priority: str = "不限",
+        filter_status: str = "不限"
+    ) -> Tuple[List[dict], str, str]:
         """
         处理机器人响应（流式）
 
@@ -328,18 +379,37 @@ class ChatPage:
             bm25_weight: BM25 检索权重
             enable_reranking: 是否启用重排序
             rerank_top_k: 重排序候选数量
+            filter_sources: 过滤来源
+            filter_time_preset: 时间范围预设
+            filter_doc_types: 文档类型过滤
+            filter_priority: 优先级过滤
+            filter_status: 状态过滤
 
         Returns:
             (更新后的历史, 会话ID, 状态信息)
         """
-        if not history or history[-1][1] is not None:
+        # Check if there's a user message without a response
+        if not history or history[-1].get("role") != "user":
             yield history, session_id, "无待处理消息"
             return
 
-        user_message = history[-1][0]
+        user_message = history[-1]["content"]
         assistant_message = ""
         rag_contexts = []
         status = "生成中..."
+
+        # 处理过滤参数
+        api_filter_sources = filter_sources if filter_sources and len(filter_sources) > 0 else None
+        api_filter_time_preset = None if filter_time_preset == "不限" else filter_time_preset
+        api_filter_doc_types = filter_doc_types if filter_doc_types and len(filter_doc_types) > 0 else None
+
+        # 构建元数据过滤
+        api_filter_metadata = {}
+        if filter_priority and filter_priority != "不限":
+            api_filter_metadata["priority"] = filter_priority
+        if filter_status and filter_status != "不限":
+            api_filter_metadata["status"] = filter_status
+        api_filter_metadata = api_filter_metadata if api_filter_metadata else None
 
         try:
             # 流式生成
@@ -355,7 +425,11 @@ class ChatPage:
                 vector_weight=vector_weight,
                 bm25_weight=bm25_weight,
                 enable_reranking=enable_reranking,
-                rerank_top_k=rerank_top_k
+                rerank_top_k=rerank_top_k,
+                filter_sources=api_filter_sources,
+                filter_time_preset=api_filter_time_preset,
+                filter_doc_types=api_filter_doc_types,
+                filter_metadata=api_filter_metadata
             ):
                 event_type = event.get("event")
                 data = event.get("data", {})
@@ -364,6 +438,9 @@ class ChatPage:
                     # 更新会话 ID
                     session_id = data.get("session_id", session_id)
                     status = "正在生成..."
+                    # Add assistant message placeholder if not exists
+                    if len(history) == 0 or history[-1].get("role") != "assistant":
+                        history.append({"role": "assistant", "content": ""})
 
                 elif event_type == "context":
                     # RAG 检索结果 - 保存以便后续格式化
@@ -380,7 +457,7 @@ class ChatPage:
                         assistant_message,
                         rag_contexts if rag_contexts else None
                     )
-                    history[-1][1] = formatted_response
+                    history[-1]["content"] = formatted_response
 
                     # 实时更新 UI
                     yield history, session_id, status
@@ -391,7 +468,7 @@ class ChatPage:
                         assistant_message,
                         rag_contexts if rag_contexts else None
                     )
-                    history[-1][1] = formatted_response
+                    history[-1]["content"] = formatted_response
 
                     model = data.get("model", "unknown")
                     token_count = data.get("token_count", 0)
@@ -401,14 +478,20 @@ class ChatPage:
                 elif event_type == "error":
                     # 错误处理
                     error_msg = data.get("message", "未知错误")
-                    history[-1][1] = f"❌ **错误**: {error_msg}"
+                    if len(history) > 0 and history[-1].get("role") == "assistant":
+                        history[-1]["content"] = f"❌ **错误**: {error_msg}"
+                    else:
+                        history.append({"role": "assistant", "content": f"❌ **错误**: {error_msg}"})
                     status = f"错误: {error_msg}"
                     yield history, session_id, status
                     return
 
         except Exception as e:
             logger.error(f"Bot response error: {e}", exc_info=True)
-            history[-1][1] = f"❌ **系统错误**: {str(e)}"
+            if len(history) > 0 and history[-1].get("role") == "assistant":
+                history[-1]["content"] = f"❌ **系统错误**: {str(e)}"
+            else:
+                history.append({"role": "assistant", "content": f"❌ **系统错误**: {str(e)}"})
             status = f"错误: {str(e)}"
 
         yield history, session_id, status
@@ -481,7 +564,7 @@ class ChatPage:
     async def clear_history_handler(
         self,
         session_id: Optional[str]
-    ) -> Tuple[List, None, str]:
+    ) -> Tuple[List[dict], None, str]:
         """
         清空对话历史
 

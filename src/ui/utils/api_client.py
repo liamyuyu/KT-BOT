@@ -49,7 +49,11 @@ class ChatAPIClient:
         vector_weight: float = 0.5,
         bm25_weight: float = 0.5,
         enable_reranking: bool = True,
-        rerank_top_k: int = 10
+        rerank_top_k: int = 10,
+        filter_sources: Optional[List[str]] = None,
+        filter_time_preset: Optional[str] = None,
+        filter_doc_types: Optional[List[str]] = None,
+        filter_metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         非流式对话
@@ -68,6 +72,10 @@ class ChatAPIClient:
             bm25_weight: BM25 检索权重
             enable_reranking: 是否启用重排序
             rerank_top_k: 重排序候选数量
+            filter_sources: 过滤来源（jira/confluence/local）
+            filter_time_preset: 时间范围预设（1d/7d/30d/90d）
+            filter_doc_types: 文档类型过滤
+            filter_metadata: 元数据过滤
 
         Returns:
             响应数据字典
@@ -87,7 +95,11 @@ class ChatAPIClient:
             "vector_weight": vector_weight,
             "bm25_weight": bm25_weight,
             "enable_reranking": enable_reranking,
-            "rerank_top_k": rerank_top_k
+            "rerank_top_k": rerank_top_k,
+            "filter_sources": filter_sources,
+            "filter_time_preset": filter_time_preset,
+            "filter_doc_types": filter_doc_types,
+            "filter_metadata": filter_metadata
         }
 
         try:
@@ -120,7 +132,11 @@ class ChatAPIClient:
         vector_weight: float = 0.5,
         bm25_weight: float = 0.5,
         enable_reranking: bool = True,
-        rerank_top_k: int = 10
+        rerank_top_k: int = 10,
+        filter_sources: Optional[List[str]] = None,
+        filter_time_preset: Optional[str] = None,
+        filter_doc_types: Optional[List[str]] = None,
+        filter_metadata: Optional[Dict[str, Any]] = None
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         流式对话（SSE）
@@ -139,6 +155,10 @@ class ChatAPIClient:
             bm25_weight: BM25 检索权重
             enable_reranking: 是否启用重排序
             rerank_top_k: 重排序候选数量
+            filter_sources: 过滤来源（jira/confluence/local）
+            filter_time_preset: 时间范围预设（1d/7d/30d/90d）
+            filter_doc_types: 文档类型过滤
+            filter_metadata: 元数据过滤
 
         Yields:
             事件字典 {"event": "...", "data": {...}}
@@ -158,7 +178,11 @@ class ChatAPIClient:
             "vector_weight": vector_weight,
             "bm25_weight": bm25_weight,
             "enable_reranking": enable_reranking,
-            "rerank_top_k": rerank_top_k
+            "rerank_top_k": rerank_top_k,
+            "filter_sources": filter_sources,
+            "filter_time_preset": filter_time_preset,
+            "filter_doc_types": filter_doc_types,
+            "filter_metadata": filter_metadata
         }
 
         try:
@@ -243,8 +267,16 @@ class ChatAPIClient:
             logger.error(f"Clear history failed: {e}")
             return False
 
-    async def get_models(self) -> List[str]:
-        """获取可用模型列表"""
+    async def get_models(self) -> Dict[str, Any]:
+        """
+        获取可用模型列表和当前模型
+
+        Returns:
+            {
+                "models": {"llm": [...], "embedding": [...]},
+                "current": {"llm": "...", "embedding": "..."}
+            }
+        """
         url = f"{self.base_url}{self.api_prefix}/models/list"
 
         try:
@@ -252,12 +284,97 @@ class ChatAPIClient:
                 response = await client.get(url)
                 response.raise_for_status()
                 data = response.json()
-                return data.get("data", {}).get("models", [])
+                return data.get("data", {
+                    "models": {
+                        "llm": ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"],
+                        "embedding": ["nomic-embed-text", "mxbai-embed-large"]
+                    },
+                    "current": {"llm": None, "embedding": None}
+                })
 
         except Exception as e:
             logger.error(f"Get models failed: {e}")
             # 返回默认模型列表
-            return ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"]
+            return {
+                "models": {
+                    "llm": ["qwen2.5:7b", "qwen2.5:14b", "llama3.1:8b"],
+                    "embedding": ["nomic-embed-text", "mxbai-embed-large"]
+                },
+                "current": {"llm": None, "embedding": None}
+            }
+
+    async def get_model_status(self) -> Optional[Dict[str, Any]]:
+        """
+        获取模型状态（包括健康检查）
+
+        Returns:
+            {
+                "current_models": {"llm": "...", "embedding": "..."},
+                "health": {"llm": true, "embedding": true}
+            }
+        """
+        url = f"{self.base_url}{self.api_prefix}/models/status"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("data")
+
+        except Exception as e:
+            logger.error(f"Get model status failed: {e}")
+            return None
+
+    async def switch_llm_model(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        切换 LLM 对话模型
+
+        Args:
+            model_name: 目标模型名称
+
+        Returns:
+            切换结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/models/switch-llm"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json={"model_name": model_name})
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Switch LLM model failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Switch LLM model failed: {e}")
+            return None
+
+    async def switch_embedding_model(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        切换 Embedding 模型
+
+        Args:
+            model_name: 目标模型名称
+
+        Returns:
+            切换结果（包含警告信息）
+        """
+        url = f"{self.base_url}{self.api_prefix}/models/switch-embedding"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json={"model_name": model_name})
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Switch embedding model failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Switch embedding model failed: {e}")
+            return None
 
     # ============ 文档管理 API ============
 
@@ -430,6 +547,284 @@ class ChatAPIClient:
 
         except Exception as e:
             logger.error(f"Get document stats failed: {e}")
+            return None
+
+    # ============ 搜索 API (Story 4.5) ============
+
+    async def search_documents(
+        self,
+        query: str,
+        method: str = "hybrid",
+        top_k: int = 10,
+        page: int = 1,
+        page_size: int = 10,
+        sources: Optional[List[str]] = None,
+        doc_types: Optional[List[str]] = None,
+        time_range: Optional[str] = None,
+        enable_highlight: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        搜索文档
+
+        Args:
+            query: 搜索查询
+            method: 搜索方法（vector/bm25/hybrid）
+            top_k: 返回结果数量
+            page: 页码
+            page_size: 每页大小
+            sources: 来源过滤
+            doc_types: 文档类型过滤
+            time_range: 时间范围过滤
+            enable_highlight: 是否启用关键词高亮
+
+        Returns:
+            搜索结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/search/documents"
+
+        request_data = {
+            "query": query,
+            "method": method,
+            "top_k": top_k,
+            "page": page,
+            "page_size": page_size,
+            "sources": sources,
+            "doc_types": doc_types,
+            "time_range": time_range,
+            "enable_highlight": enable_highlight
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json=request_data)
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Search documents failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Search documents failed: {e}")
+            return None
+
+    async def get_search_methods(self) -> Optional[Dict[str, Any]]:
+        """
+        获取支持的搜索方法列表
+
+        Returns:
+            搜索方法列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/search/methods"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get search methods failed: {e}")
+            return {
+                "data": {
+                    "methods": [
+                        {"value": "hybrid", "label": "混合搜索", "description": "结合向量和全文搜索"},
+                        {"value": "vector", "label": "向量搜索", "description": "基于语义相似度"},
+                        {"value": "bm25", "label": "全文搜索", "description": "基于关键词匹配"}
+                    ],
+                    "default": "hybrid"
+                }
+            }
+
+    # ========================================================================
+    # 同步管理 API
+    # ========================================================================
+
+    async def trigger_sync(
+        self,
+        source: str,
+        sync_type: str = "incremental",
+        created_by: str = "ui"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        触发同步任务
+
+        Args:
+            source: 数据源 (jira/confluence)
+            sync_type: 同步类型 (full/incremental)
+            created_by: 创建者
+
+        Returns:
+            触发结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/trigger/{source}"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    url,
+                    json={
+                        "sync_type": sync_type,
+                        "created_by": created_by
+                    }
+                )
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Trigger sync failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Trigger sync failed: {e}")
+            return None
+
+    async def get_scheduler_status(self) -> Optional[Dict[str, Any]]:
+        """
+        获取调度器状态
+
+        Returns:
+            调度器状态信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/scheduler/status"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get scheduler status failed: {e}")
+            return None
+
+    async def get_sync_config(self, source: str) -> Optional[Dict[str, Any]]:
+        """
+        获取同步配置
+
+        Args:
+            source: 数据源 (jira/confluence)
+
+        Returns:
+            配置信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/config/{source}"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get sync config failed: {e}")
+            return None
+
+    async def reload_sync_config(self) -> Optional[Dict[str, Any]]:
+        """
+        重新加载同步配置
+
+        Returns:
+            操作结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/config/reload"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Reload sync config failed: {e}")
+            return None
+
+    async def get_running_tasks(self) -> Optional[Dict[str, Any]]:
+        """
+        获取运行中的任务
+
+        Returns:
+            运行中的任务列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/status/running"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get running tasks failed: {e}")
+            return None
+
+    async def get_sync_history(
+        self,
+        source: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取同步历史记录
+
+        Args:
+            source: 数据源过滤
+            status: 状态过滤
+            page: 页码
+            page_size: 每页大小
+
+        Returns:
+            历史记录列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/history"
+
+        params = {
+            "page": page,
+            "page_size": page_size
+        }
+        if source:
+            params["source"] = source
+        if status:
+            params["status"] = status
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get sync history failed: {e}")
+            return None
+
+    async def get_sync_statistics(
+        self,
+        source: Optional[str] = None,
+        days: int = 7
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取同步统计信息
+
+        Args:
+            source: 数据源
+            days: 统计最近N天
+
+        Returns:
+            统计信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/sync/statistics"
+
+        params = {"days": days}
+        if source:
+            params["source"] = source
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get sync statistics failed: {e}")
             return None
 
 

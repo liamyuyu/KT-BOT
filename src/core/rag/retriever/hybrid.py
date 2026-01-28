@@ -7,11 +7,12 @@ import logging
 import asyncio
 import time
 import hashlib
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union, Any
 from collections import defaultdict
 from functools import lru_cache
 
-from ..models import RetrievalResult, RetrievalConfig, HybridConfig
+from ..models import RetrievalResult, RetrievalConfig, HybridConfig, FilterConfig
+from ..filters.base import BaseFilter
 from ..exceptions import RetrievalError, InvalidConfigError
 from .base import BaseRetriever
 from .vector import VectorRetriever
@@ -85,9 +86,19 @@ class HybridRetriever(BaseRetriever):
             f"cache_enabled={enable_cache}, timeout={retrieval_timeout}s"
         )
 
-    def _get_cache_key(self, query: str, top_k: int, **kwargs) -> str:
+    def _get_cache_key(self, query: str, top_k: int, filters=None, **kwargs) -> str:
         """生成查询缓存键"""
-        cache_str = f"{query}|{top_k}|{kwargs.get('vector_top_k')}|{kwargs.get('bm25_top_k')}"
+        # 将过滤条件也包含在缓存键中
+        filter_str = ""
+        if filters:
+            if isinstance(filters, dict):
+                filter_str = str(sorted(filters.items()))
+            elif isinstance(filters, (FilterConfig, BaseFilter)):
+                filter_str = str(filters)
+            else:
+                filter_str = str(filters)
+
+        cache_str = f"{query}|{top_k}|{kwargs.get('vector_top_k')}|{kwargs.get('bm25_top_k')}|{filter_str}"
         return hashlib.md5(cache_str.encode()).hexdigest()
 
     def _get_from_cache(self, cache_key: str) -> Optional[List[RetrievalResult]]:
@@ -128,14 +139,19 @@ class HybridRetriever(BaseRetriever):
         self,
         query: str,
         top_k: int = None,
+        filters: Optional[Union[Dict[str, Any], FilterConfig, BaseFilter]] = None,
         **kwargs
     ) -> List[RetrievalResult]:
         """
-        混合检索（支持并发、超时、缓存）
+        混合检索（支持并发、超时、缓存、过滤）
 
         Args:
             query: 查询文本
             top_k: 返回结果数量（覆盖配置）
+            filters: 过滤条件，支持三种格式：
+                1. Dict: ChromaDB where 子句字典
+                2. FilterConfig: 过滤配置对象
+                3. BaseFilter: 过滤器对象
             **kwargs: 其他参数
                 - vector_top_k: 向量检索候选数量（默认 top_k * 2）
                 - bm25_top_k: BM25 检索候选数量（默认 top_k * 2）
@@ -161,15 +177,18 @@ class HybridRetriever(BaseRetriever):
             vector_top_k = kwargs.get("vector_top_k", k * 2)
             bm25_top_k = kwargs.get("bm25_top_k", k * 2)
 
-            # 检查缓存
-            cache_key = self._get_cache_key(query, k, **kwargs)
+            # 检查缓存（包含过滤条件在缓存键中）
+            cache_key = self._get_cache_key(query, k, filters=filters, **kwargs)
             cached_results = self._get_from_cache(cache_key)
             if cached_results is not None:
                 logger.info(f"Returned {len(cached_results)} cached results for query: {query[:50]}...")
                 return cached_results
 
             # 并发执行两种检索（使用 asyncio.gather）
-            logger.debug(f"Concurrent retrieval: vector_top_k={vector_top_k}, bm25_top_k={bm25_top_k}")
+            logger.debug(
+                f"Concurrent retrieval: vector_top_k={vector_top_k}, bm25_top_k={bm25_top_k}, "
+                f"filters={type(filters).__name__ if filters else None}"
+            )
 
             # 记录各检索器的开始时间
             vector_start = time.time()
@@ -177,9 +196,10 @@ class HybridRetriever(BaseRetriever):
 
             try:
                 # 使用 asyncio.gather 并发执行，带超时控制
+                # 注意：BM25Retriever 不支持 ChromaDB 过滤，所以只传递给 VectorRetriever
                 vector_results, bm25_results = await asyncio.wait_for(
                     asyncio.gather(
-                        self.vector_retriever.retrieve(query, top_k=vector_top_k),
+                        self.vector_retriever.retrieve(query, top_k=vector_top_k, filters=filters),
                         self.bm25_retriever.retrieve(query, top_k=bm25_top_k),
                         return_exceptions=False
                     ),
@@ -277,6 +297,7 @@ class HybridRetriever(BaseRetriever):
         self,
         queries: List[str],
         top_k: int = None,
+        filters: Optional[Union[Dict[str, Any], FilterConfig, BaseFilter]] = None,
         **kwargs
     ) -> List[List[RetrievalResult]]:
         """
@@ -285,6 +306,7 @@ class HybridRetriever(BaseRetriever):
         Args:
             queries: 查询文本列表
             top_k: 每个查询返回的结果数量
+            filters: 过滤条件
             **kwargs: 其他参数
 
         Returns:
@@ -292,7 +314,7 @@ class HybridRetriever(BaseRetriever):
         """
         results = []
         for query in queries:
-            result = await self.retrieve(query, top_k, **kwargs)
+            result = await self.retrieve(query, top_k, filters, **kwargs)
             results.append(result)
         return results
 

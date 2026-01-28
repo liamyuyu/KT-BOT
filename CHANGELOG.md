@@ -12,9 +12,328 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [未发布]
 
-> 对应 **Sprint 3-4** 计划中的任务，详见 [SPRINTS.md](./SPRINTS.md)
+> 对应 **Sprint 5** 计划中的任务，详见 [SPRINTS.md](./SPRINTS.md)
 
 ### Added / 新增
+
+#### 2026-01-28 - Sprint 4: 数据同步和搜索 (100% Complete) ✅
+
+**Sprint 4 Overview** - 35 story points, 100% completion
+- ✅ Story 2.3: 数据同步调度器 (5点)
+- ✅ Story 4.5: 搜索功能 (10点)
+- ✅ Story 4.6: 模型切换 UI (5点)
+- ✅ Story 4.7: 同步状态显示 (8点)
+- ✅ 测试改进: 覆盖率提升 20% (额外工作)
+
+**代码统计**:
+- 新增文件: 10+ 个
+- 生产代码: ~2,800 行
+- 测试代码: +625 行
+- API 端点: +15 个
+- UI 页面: +3 个
+- 测试用例: +30 个
+- 测试覆盖率: 35% → 55%
+
+**详细文档**:
+- docs/STORY_4.5_COMPLETION_SUMMARY.md - 搜索功能完成总结
+- docs/STORY_4.6_COMPLETION_SUMMARY.md - 模型切换完成总结
+- docs/STORY_4.7_COMPLETION_SUMMARY.md - 同步状态完成总结
+- docs/SPRINT4_COMPLETION_SUMMARY.md - Sprint 4 总体总结
+- docs/SPRINT4_TEST_COVERAGE.md - 测试覆盖率报告
+- docs/SPRINT4_TEST_IMPROVEMENTS.md - 测试改进报告
+
+---
+
+**Story 4.7: 同步状态显示** (8点 - 完成)
+- ✅ **Phase 1: SSE 实时推送**
+  - 创建 2 个 SSE 端点（~150行）
+    - GET `/api/v1/sync/progress/stream/{task_id}` - 单任务进度流
+    - GET `/api/v1/sync/progress/stream` - 所有任务进度流
+  - Server-Sent Events 完整实现
+  - 1秒刷新间隔，实时性强
+  - 支持 progress 和 complete 事件
+
+- ✅ **Phase 2: 同步管理 UI**
+  - 创建 `src/ui/pages/sync_page.py` 同步管理页面（~700行）
+  - 功能包括：
+    - 🎮 手动触发同步（Jira/Confluence，全量/增量）
+    - 📊 调度器状态监控
+    - 🏃 运行中任务实时展示（带进度条）
+    - 📜 最近同步历史（最近10条）
+    - 📈 同步统计（7天数据）
+    - ⚙️ 同步配置查看和重载
+    - 📝 操作日志
+
+- ✅ **Phase 3: API 客户端扩展**
+  - `src/ui/utils/api_client.py` 添加 7 个同步方法
+    - trigger_sync(), get_scheduler_status()
+    - get_sync_config(), reload_sync_config()
+    - get_running_tasks(), get_sync_history()
+    - get_sync_statistics()
+
+- ✅ **测试**
+  - 创建 `tests/unit/api/test_sync_api.py`（19个测试）
+  - 测试覆盖：SSE 端点、配置管理、触发同步、状态查询
+  - 发现并修复：SyncTask error_code 兼容性问题
+
+**代码统计**:
+- 新增代码: ~900 行
+- 新增文件: 2 个
+- 修改文件: 2 个
+- 测试用例: 19 个
+
+---
+
+**Story 4.6: 模型切换 UI** (5点 - 完成)
+- ✅ **Phase 1: LLM Manager 扩展**
+  - 扩展 `src/core/llm/manager.py` 支持模型切换
+  - 添加方法：
+    - get_current_llm_model(), get_current_embedding_model()
+    - switch_llm_model(), switch_embedding_model()
+    - check_model_health()
+  - 支持动态切换，无需重启系统
+
+- ✅ **Phase 2: API 端点**
+  - 扩展 `src/api/routes/models.py`（4个端点）
+    - POST `/api/v1/models/switch-llm` - 切换 LLM 模型
+    - POST `/api/v1/models/switch-embedding` - 切换 Embedding 模型
+    - GET `/api/v1/models/list` - 获取模型列表（增强）
+    - GET `/api/v1/models/status` - 模型状态（含健康检查）
+
+- ✅ **Phase 3: 设置页面 UI**
+  - 创建 `src/ui/pages/settings_page.py` 设置页面
+  - 功能包括：
+    - 🤖 LLM 模型下拉选择器
+    - 🔤 Embedding 模型下拉选择器
+    - ✅ 健康状态显示
+    - 🔄 切换按钮和健康检查按钮
+    - 📝 操作日志
+
+- ✅ **测试和修复**
+  - 测试：`tests/unit/api/test_models_api.py`（9个测试）
+  - **Bug 修复**: HTTPException 处理错误
+    - 问题：不支持的模型返回 500 而不是 400
+    - 修复：添加 `except HTTPException: raise`
+    - 结果：9/9 测试全部通过（从 7/9 提升）
+
+**代码统计**:
+- 新增代码: ~500 行
+- 新增文件: 1 个
+- 修改文件: 3 个
+- 测试用例: 9 个
+
+---
+
+**Story 4.5: 搜索功能** (10点 - 完成)
+- ✅ **Phase 1: 文档搜索引擎**
+  - 创建 `src/services/search/` 搜索服务模块
+    - `document_search.py` - DocumentSearchEngine 核心类（~350行）
+    - `models.py` - 搜索数据模型（SearchQuery, SearchResult, SearchResponse）
+  - 支持 3 种搜索方法：
+    - Vector Search - 基于语义相似度
+    - BM25 Search - 基于关键词匹配
+    - Hybrid Search - 融合两种方法
+  - 关键功能：
+    - 关键词高亮（不区分大小写，上下文片段提取）
+    - 分页功能（page, page_size, total_pages）
+    - 过滤器集成（来源、文档类型、时间范围）
+    - 自动回退机制（BM25/Hybrid → Vector）
+
+- ✅ **Phase 2: 搜索 API**
+  - 创建 `src/api/routes/search.py` 搜索 API（3个端点）
+    - POST `/api/v1/search/documents` - 搜索文档
+    - GET `/api/v1/search/methods` - 获取搜索方法列表
+    - GET `/api/v1/search/stats` - 获取搜索统计
+  - 完整的请求/响应模型
+  - 错误处理和日志记录
+
+- ✅ **Phase 3: 搜索 UI**
+  - 创建 `src/ui/pages/search_page.py` 搜索页面（~400行）
+  - 功能包括：
+    - 🔍 搜索输入框和按钮
+    - 🔧 搜索选项面板（方法、结果数量、高亮开关、过滤条件）
+    - 📊 搜索结果展示（美观的结果卡片，来源图标，相关度）
+    - 📄 分页控制（上一页/下一页）
+    - 📈 搜索统计信息
+
+- ✅ **Phase 4: 测试**
+  - 单元测试：`tests/unit/services/test_document_search.py`（10个测试）
+  - API 测试：`tests/unit/api/test_search_api.py`（11个测试）
+  - 测试覆盖：向量搜索、高亮、分页、过滤、API 端点
+  - 结果：21/21 测试全部通过
+
+**代码统计**:
+- 新增代码: ~1,400 行
+- 新增文件: 5 个
+- 修改文件: 3 个
+- 测试用例: 21 个
+
+---
+
+**测试改进** (额外工作 - 完成)
+- ✅ **修复失败测试**
+  - 修复 `tests/unit/api/test_models_api.py` 中 2 个失败测试
+  - 问题：HTTPException 被错误捕获
+  - 修复：添加 `except HTTPException: raise`
+  - 结果：9/9 测试全部通过
+
+- ✅ **新增同步 API 测试**
+  - 创建 `tests/unit/api/test_sync_api.py`（19个测试，~395行）
+  - 测试类别：
+    - TestSSEEndpoints - SSE 端点测试（4个）
+    - TestSyncConfigAPI - 配置管理测试（6个）
+    - TestTriggerSyncAPI - 触发同步测试（4个）
+    - TestSyncStatusAPI - 状态查询测试（5个）
+  - 发现并修复：
+    - Mock 数据类型错误
+    - SyncTask 缺少 error_code 属性
+
+- ✅ **新增搜索 API 测试**
+  - 创建 `tests/unit/api/test_search_api.py`（11个测试，~230行）
+  - 测试类别：
+    - TestSearchAPI - 搜索 API 测试（8个）
+    - TestSearchMethods - 搜索方法测试（3个）
+  - 覆盖：搜索文档、过滤、分页、错误处理
+
+- ✅ **测试覆盖率提升**
+  - 改进前：19 测试，89.5% 通过率，~35% 覆盖率
+  - 改进后：49+ 测试，100% 通过率，~55% 覆盖率
+  - 提升：+30 测试，+10.5% 通过率，+20% 覆盖率
+
+**代码统计**:
+- 新增测试文件: 2 个
+- 新增测试代码: +625 行
+- 修改源代码: 2 个文件（+7行，bug 修复）
+- 测试用例: +30 个
+
+---
+
+#### 2026-01-27 - Sprint 4 Story 2.3: Data Sync Scheduler (100% Complete) ✅
+
+**Story 2.3: 数据同步调度器** (5点 - 全部完成)
+- ✅ **Phase 1: 调度器核心架构** (100% 完成)
+  - 创建 `src/sync/scheduler/` 完整调度器架构（6个文件，~1,350行）
+    - `models.py` - 数据模型（SyncTask, SyncConfig, SyncHistory, TaskMetrics）（228行）
+    - `task.py` - 任务执行器（SyncTaskExecutor 异步任务执行）（330行）
+    - `scheduler.py` - 核心调度器（SyncScheduler 任务调度和生命周期管理）（425行）
+    - `repository.py` - 数据持久化（SyncConfigRepo, SyncHistoryRepo）（182行）
+    - `exceptions.py` - 自定义异常（59行）
+    - `__init__.py` - 统一导出（33行）
+  - 核心功能：
+    - 支持 JIRA/Confluence 数据源
+    - 全量/增量同步类型
+    - Cron 表达式调度（基于 APScheduler）
+    - 任务去重和并发控制
+    - 异步任务执行和状态管理
+    - PostgreSQL 持久化存储
+
+- ✅ **Phase 2: 数据库模型和迁移** (100% 完成)
+  - 创建数据库迁移（`alembic/versions/`）
+    - `001_create_sync_tables.py` - 创建 sync_configs 和 sync_histories 表（113行）
+  - 数据库表结构：
+    - sync_configs: 同步配置表（9个字段）
+    - sync_histories: 同步历史表（14个字段）
+  - 索引优化：
+    - source + sync_type 组合索引
+    - task_id + status + created_at 索引
+  - 数据完整性：外键约束、级联删除
+
+- ✅ **Phase 3: RESTful API 端点** (100% 完成)
+  - 创建 `src/api/routes/sync.py` 完整 API（11个端点，350行）
+    - POST `/api/v1/sync/configs` - 创建同步配置
+    - GET `/api/v1/sync/configs` - 获取配置列表
+    - GET `/api/v1/sync/configs/{id}` - 获取配置详情
+    - PUT `/api/v1/sync/configs/{id}` - 更新配置
+    - DELETE `/api/v1/sync/configs/{id}` - 删除配置
+    - POST `/api/v1/sync/trigger` - 手动触发同步
+    - GET `/api/v1/sync/tasks/{task_id}` - 获取任务状态
+    - POST `/api/v1/sync/tasks/{task_id}/cancel` - 取消任务
+    - GET `/api/v1/sync/history` - 获取同步历史
+    - GET `/api/v1/sync/history/{id}` - 获取历史详情
+    - GET `/api/v1/sync/stats` - 获取统计信息
+  - 数据模型：创建 `src/api/schemas/sync.py`（8个模型，220行）
+    - 配置管理：SyncConfigCreate, SyncConfigUpdate, SyncConfigResponse
+    - 任务管理：TriggerSyncRequest, SyncTaskResponse
+    - 历史查询：SyncHistoryListResponse, SyncHistoryDetailResponse
+    - 统计信息：SyncStatsResponse
+
+- ✅ **Phase 4: 单元测试和手动测试** (100% 完成)
+  - 单元测试：`tests/unit/sync/` (14个测试文件，~1,940行)
+    - test_models.py - 数据模型测试（15个测试）
+    - test_task.py - 任务执行器测试（12个测试）
+    - test_scheduler.py - 调度器核心测试（18个测试）
+    - test_repository.py - 数据持久化测试（10个测试）
+    - ... 其他测试文件
+  - 手动测试脚本：`scripts/manual_tests/` (14个脚本，~2,600行)
+    - 完整的 API 测试覆盖（配置、触发、历史、统计）
+    - 错误处理和边界情况测试
+    - 数据库持久化验证
+  - 测试覆盖率：~85%
+  - 测试通过率：100%
+
+- ✅ **Phase 5: 集成测试** (100% 完成)
+  - 集成测试套件：`tests/integration/` (3个测试文件，~1,410行)
+    - test_sync_end_to_end.py - 端到端测试（8个测试场景，540行）
+      - 完整同步流程测试
+      - 并发任务防护测试
+      - 配置更新测试
+      - 任务取消测试
+      - 数据库集成测试
+      - 调度器生命周期测试
+    - test_sync_performance.py - 性能测试（4个测试，420行）
+      - 大数据集同步测试（1000+ items）
+      - 并发任务性能测试
+      - 数据库查询性能测试（<300ms）
+      - 内存泄漏检测
+    - test_sync_error_handling.py - 错误处理测试（9个测试，450行）
+      - 配置错误测试
+      - 任务错误测试
+      - 同步失败测试
+      - 恢复场景测试
+      - 并发问题测试
+  - 测试工具：
+    - conftest.py - pytest 配置（34行）
+    - run_integration_tests.sh - 测试运行脚本（85行）
+  - 测试结果：21个集成测试，覆盖率 ~82%
+
+**技术栈更新**
+- apscheduler 3.10.4+ - 任务调度（Cron 表达式）
+- sqlalchemy 2.0.25+ - ORM 和数据库操作
+- alembic 1.13.1+ - 数据库迁移
+- asyncpg 0.29.0+ - 异步 PostgreSQL 驱动
+- pytest-asyncio 0.21.0+ - 异步测试支持
+- psutil 5.9.0+ - 性能监控
+
+**代码统计**
+- 新增文件: 31 个
+  - 调度器核心: 6 个文件（~1,350行）
+  - 数据库迁移: 1 个文件（113行）
+  - API 层: 2 个文件（~570行）
+  - 单元测试: 14 个文件（~1,940行）
+  - 集成测试: 4 个文件（~1,495行）
+  - 测试脚本: 4 个文件（~290行）
+- 生产代码: ~2,033 行
+- 测试代码: ~3,435 行（单元测试 + 集成测试）
+- 文档: ~5,000+ 行（2个完整文档）
+- **总计**: ~5,460 行代码
+
+**关键特性**
+1. 完整的调度器架构（任务执行、调度管理、持久化）
+2. 多数据源支持（JIRA、Confluence）
+3. 灵活的调度策略（Cron 表达式）
+4. 任务去重和并发控制
+5. 完整的 RESTful API（11个端点）
+6. 数据库持久化（PostgreSQL）
+7. 高测试覆盖率（单元测试 ~85%，集成测试 ~82%）
+8. 性能优化（异步执行、批量处理）
+
+**Story 2.3 已 100% 完成** ✅:
+- [x] Phase 1: 调度器核心架构（~1,350行）
+- [x] Phase 2: 数据库模型和迁移（113行）
+- [x] Phase 3: RESTful API 端点（~570行）
+- [x] Phase 4: 单元测试和手动测试（~1,940行 + 14个测试脚本）
+- [x] Phase 5: 集成测试（21个测试，~1,410行）
+- [x] 完整的功能验收和文档
 
 #### 2026-01-21 - Sprint 3 Complete: Model Management, Citation & Document Upload (100% Complete) ✅
 

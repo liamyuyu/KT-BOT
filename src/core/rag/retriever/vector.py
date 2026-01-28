@@ -4,7 +4,7 @@ Vector Retriever
 """
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
 from src.core.vectordb.chroma_client import ChromaDBClient, get_chroma_client
 from src.core.vectordb.models import SearchResult
@@ -12,7 +12,8 @@ from src.core.llm.manager import get_llm_manager, LLMManager
 from src.core.llm.base import BaseEmbedding
 
 from .base import BaseRetriever
-from ..models import RetrievalResult, RetrievalConfig
+from ..models import RetrievalResult, RetrievalConfig, FilterConfig
+from ..filters.base import BaseFilter
 from ..exceptions import RetrievalError, EmbeddingError
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class VectorRetriever(BaseRetriever):
         self,
         query: str,
         top_k: int = None,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[Union[Dict[str, Any], FilterConfig, BaseFilter]] = None,
         **kwargs
     ) -> List[RetrievalResult]:
         """
@@ -73,7 +74,10 @@ class VectorRetriever(BaseRetriever):
         Args:
             query: 查询文本
             top_k: 返回结果数量（覆盖配置，默认使用配置中的 top_k）
-            filters: 元数据过滤条件（如 {"project_key": "PROJ"}）
+            filters: 过滤条件，支持三种格式：
+                1. Dict: ChromaDB where 子句字典（如 {"project_key": "PROJ"}）
+                2. FilterConfig: 过滤配置对象
+                3. BaseFilter: 过滤器对象（SourceFilter, TimeRangeFilter等）
             **kwargs: 其他检索参数
 
         Returns:
@@ -94,24 +98,32 @@ class VectorRetriever(BaseRetriever):
             if not query_embedding:
                 raise EmbeddingError("Failed to generate query embedding")
 
-            # 2. 在 ChromaDB 中搜索
+            # 2. 处理过滤条件
+            where_clause = self._build_where_clause(filters)
+
+            # 3. 在 ChromaDB 中搜索
             n_results = top_k or self.config.top_k
             search_results = self.chroma_client.search(
                 query_embeddings=[query_embedding],
                 n_results=n_results,
                 collection_name=self.collection_name,
-                where=filters
+                where=where_clause
             )
 
-            # 3. 转换为 RetrievalResult
+            # 4. 转换为 RetrievalResult
             results = self._convert_search_results(search_results)
 
-            # 4. 应用分数过滤
+            # 5. 应用分数过滤
             if self.config.min_score is not None:
                 results = [r for r in results if r.score >= self.config.min_score]
 
+            # 6. 如果使用 BaseFilter，应用后置过滤（Post-filtering）
+            if isinstance(filters, BaseFilter):
+                results = filters.apply(results)
+
             logger.info(
-                f"Retrieved {len(results)} results for query (top_k={n_results})"
+                f"Retrieved {len(results)} results for query (top_k={n_results}, "
+                f"filters={type(filters).__name__ if filters else None})"
             )
 
             return results
@@ -119,11 +131,43 @@ class VectorRetriever(BaseRetriever):
         except Exception as e:
             raise RetrievalError(f"Retrieval failed: {e}")
 
+    def _build_where_clause(
+        self,
+        filters: Optional[Union[Dict[str, Any], FilterConfig, BaseFilter]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        构建 ChromaDB where 子句
+
+        Args:
+            filters: 过滤条件（Dict/FilterConfig/BaseFilter）
+
+        Returns:
+            ChromaDB where 子句字典，如果没有过滤条件则返回 None
+        """
+        if filters is None:
+            return None
+
+        # 如果是字典，直接返回
+        if isinstance(filters, dict):
+            return filters
+
+        # 如果是 FilterConfig，转换为 where 子句
+        if isinstance(filters, FilterConfig):
+            return filters.to_chroma_where()
+
+        # 如果是 BaseFilter，转换为 where 子句
+        if isinstance(filters, BaseFilter):
+            return filters.to_chroma_where()
+
+        # 未知类型，记录警告
+        logger.warning(f"Unknown filter type: {type(filters)}, ignoring filters")
+        return None
+
     async def batch_retrieve(
         self,
         queries: List[str],
         top_k: int = None,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[Union[Dict[str, Any], FilterConfig, BaseFilter]] = None,
         **kwargs
     ) -> List[List[RetrievalResult]]:
         """

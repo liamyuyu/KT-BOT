@@ -40,6 +40,10 @@ class LLMManager:
         self.default_provider = ModelProvider.OLLAMA
         self.config = self._load_config()
 
+        # 跟踪当前激活的模型
+        self._current_llm_model: Optional[str] = None
+        self._current_embedding_model: Optional[str] = None
+
     def _load_config(self) -> ModelsConfig:
         """
         加载配置：优先级 YAML > ENV
@@ -129,6 +133,10 @@ class LLMManager:
         self._llm_cache[cache_key] = llm
         logger.info(f"Created LLM: {cache_key}")
 
+        # 设置为当前模型（如果还没有设置）
+        if self._current_llm_model is None:
+            self._current_llm_model = model_name
+
         return llm
 
     def create_embedding(
@@ -189,6 +197,10 @@ class LLMManager:
         # 缓存实例
         self._embedding_cache[cache_key] = embedding
         logger.info(f"Created Embedding: {cache_key}")
+
+        # 设置为当前模型（如果还没有设置）
+        if self._current_embedding_model is None:
+            self._current_embedding_model = model_name
 
         return embedding
 
@@ -259,6 +271,121 @@ class LLMManager:
             "llm": SUPPORTED_LLM_MODELS,
             "embedding": SUPPORTED_EMBEDDING_MODELS,
         }
+
+    def get_current_llm_model(self) -> Optional[str]:
+        """
+        获取当前激活的 LLM 模型
+
+        Returns:
+            Optional[str]: 当前模型名称
+        """
+        return self._current_llm_model
+
+    def get_current_embedding_model(self) -> Optional[str]:
+        """
+        获取当前激活的 Embedding 模型
+
+        Returns:
+            Optional[str]: 当前模型名称
+        """
+        return self._current_embedding_model
+
+    def switch_llm_model(self, model_name: str, provider: ModelProvider = ModelProvider.OLLAMA) -> BaseLLM:
+        """
+        切换 LLM 模型
+
+        Args:
+            model_name: 新模型名称
+            provider: 模型提供商
+
+        Returns:
+            BaseLLM: 新的 LLM 实例
+
+        Raises:
+            ValueError: 不支持的模型
+        """
+        if model_name not in SUPPORTED_LLM_MODELS:
+            raise ValueError(f"Unsupported model: {model_name}. Supported models: {SUPPORTED_LLM_MODELS}")
+
+        logger.info(f"Switching LLM model from {self._current_llm_model} to {model_name}")
+
+        # 创建或获取新模型实例
+        llm = self.create_llm(model_name=model_name, provider=provider)
+
+        # 更新当前模型
+        self._current_llm_model = model_name
+
+        logger.info(f"LLM model switched to {model_name}")
+        return llm
+
+    def switch_embedding_model(
+        self,
+        model_name: str,
+        provider: ModelProvider = ModelProvider.OLLAMA
+    ) -> BaseEmbedding:
+        """
+        切换 Embedding 模型
+
+        Args:
+            model_name: 新模型名称
+            provider: 模型提供商
+
+        Returns:
+            BaseEmbedding: 新的 Embedding 实例
+
+        Raises:
+            ValueError: 不支持的模型
+        """
+        if model_name not in SUPPORTED_EMBEDDING_MODELS:
+            raise ValueError(
+                f"Unsupported embedding model: {model_name}. "
+                f"Supported models: {SUPPORTED_EMBEDDING_MODELS}"
+            )
+
+        logger.info(f"Switching Embedding model from {self._current_embedding_model} to {model_name}")
+
+        # 创建或获取新模型实例
+        embedding = self.create_embedding(model_name=model_name, provider=provider)
+
+        # 更新当前模型
+        self._current_embedding_model = model_name
+
+        logger.info(f"Embedding model switched to {model_name}")
+        return embedding
+
+    async def check_model_health(self, model_name: str, model_type: str = "llm") -> bool:
+        """
+        检查指定模型的健康状态
+
+        Args:
+            model_name: 模型名称
+            model_type: 模型类型（llm 或 embedding）
+
+        Returns:
+            bool: 是否健康
+        """
+        cache_key = f"{self.default_provider}:{model_name}"
+
+        try:
+            if model_type == "llm":
+                if cache_key in self._llm_cache:
+                    return await self._llm_cache[cache_key].health_check()
+                else:
+                    # 尝试创建并检查
+                    llm = self.create_llm(model_name=model_name)
+                    return await llm.health_check()
+            elif model_type == "embedding":
+                if cache_key in self._embedding_cache:
+                    return await self._embedding_cache[cache_key].health_check()
+                else:
+                    # 尝试创建并检查
+                    embedding = self.create_embedding(model_name=model_name)
+                    return await embedding.health_check()
+            else:
+                raise ValueError(f"Invalid model_type: {model_type}")
+        except Exception as e:
+            logger.error(f"Health check failed for {model_type}:{model_name}: {e}")
+            return False
 
     def clear_cache(self):
         """清空模型缓存"""
