@@ -1520,7 +1520,7 @@ docker build -t ktbot:latest . 2>&1 | tee build.log
 
 ## 路线图
 
-### ✅ 已完成（v0.1 + Sprint 2）
+### ✅ 已完成（v0.2.0）
 
 **v0.1.0 基础功能**:
 - [x] Ollama 模型集成（qwen2.5:7b, bge-large-zh）
@@ -1528,21 +1528,28 @@ docker build -t ktbot:latest . 2>&1 | tee build.log
 - [x] 基础 RAG 检索（向量检索）
 - [x] Web UI 对话界面（Gradio + FastAPI）
 
-**Sprint 2 增强功能** ⭐ 新增:
+**Sprint 2 增强功能**:
 - [x] 混合检索系统（向量 + BM25 + RRF）
 - [x] Cross-Encoder 重排序（bge-reranker-large）
 - [x] 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
 - [x] 文档管理系统（后端 API + Gradio UI）
 - [x] 测试覆盖率提升（60.58% 整体，核心模块 85%+）
 
-### 🚧 进行中（v0.2 - Sprint 3-4）
+**Sprint 4 数据同步和搜索** ⭐ 新增:
+- [x] 数据同步调度器（定时任务、增量同步、历史记录）
+- [x] 检索结果过滤系统（来源、时间、元数据过滤）
+- [x] 全局搜索功能（文档搜索、关键词高亮、分页）
+- [x] 模型动态切换 UI（LLM/Embedding 模型切换）
+- [x] 同步状态实时监控（SSE 推送、进度显示）
+- [x] 15+ REST API 端点
+- [x] 3 个新 UI 页面（搜索、设置、同步）
 
-- [ ] 引用溯源系统（Sprint 3）
-- [ ] Embedding 模型管理（Sprint 3）
-- [ ] 模型配置文件系统（Sprint 3）
-- [ ] 本地文档上传（Sprint 3）
-- [ ] 数据同步调度器（Sprint 4）
-- [ ] Docker 部署完善（Sprint 4）
+### 🚧 进行中（v0.3 - Sprint 5）
+
+- [ ] 引用溯源系统（显示答案来源）
+- [ ] 本地文档上传（支持 PDF/DOCX/TXT）
+- [ ] 对话历史管理（保存、搜索、导出）
+- [ ] Docker 部署优化（完善容器化部署）
 
 ### 📋 计划中（v0.3）
 
@@ -1716,27 +1723,30 @@ Requirements.md → SPRINTS.md → 实际开发与迭代 → CHANGELOG.md
 
 详细的版本变更历史请查看 [CHANGELOG.md](./CHANGELOG.md)
 
-### 最新进展: Sprint 2 完成 (2026-01-20)
+### 最新进展: Sprint 4 完成 (2026-01-28) 🎉
 
-**Sprint 2 交付** (100% 完成):
-- ✅ 混合检索系统（向量 + BM25 + RRF 融合）
-- ✅ Cross-Encoder 重排序（bge-reranker-large）
-- ✅ 完整 RAG Pipeline（Hybrid → Rerank → Top-K）
-- ✅ 文档管理系统（7个API端点 + Gradio UI）
-- ✅ 测试覆盖率大幅提升（Jira: 97.28%, Confluence: 91.37%）
-- ✅ 60+ 新增测试用例，~4,000行生产代码
+**Sprint 4 交付** (100% 完成):
+- ✅ 数据同步调度器（APScheduler、增量同步、历史记录）
+- ✅ 检索结果过滤系统（来源、时间、元数据多维度过滤）
+- ✅ 全局搜索功能（混合搜索、关键词高亮、分页展示）
+- ✅ 模型动态切换（LLM/Embedding 模型无缝切换）
+- ✅ 同步状态监控（SSE 实时推送、可视化进度条）
+- ✅ 新增代码：~2,800 行，19,000+ 行变更
+- ✅ 新增 15+ REST API 端点
+- ✅ 新增 3 个 UI 页面（搜索、设置、同步）
 
-**最新版本: v0.1.0** (2025-12-30)
-- Ollama 本地模型集成
-- Jira/Confluence 企业工具集成
-- 基础 RAG 检索引擎（ChromaDB）
-- Gradio Web UI 对话界面
+**最新版本: v0.2.0** (2026-01-28)
+- 完整的数据同步和搜索系统
+- 动态模型管理
+- 实时状态监控
+- 多维度检索过滤
+- 19,000+ 行代码更新
 
-**v0.2.0 进展** (Sprint 2-4):
-- ✅ 混合检索和重排序（已完成）
-- ✅ 文档管理（已完成）
-- ⏳ 引用溯源（Sprint 3 计划）
-- ⏳ 模型管理完善（Sprint 3 计划）
+**v0.3.0 计划** (Sprint 5):
+- ⏳ 引用溯源系统（答案来源追踪）
+- ⏳ 本地文档上传（PDF/DOCX/TXT 支持）
+- ⏳ 对话历史管理（保存、搜索、导出）
+- ⏳ Docker 部署优化（容器化完善）
 
 ### 未来版本规划
 
