@@ -3,13 +3,18 @@
 """
 import tempfile
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query
 from typing import List, Optional
+from sse_starlette.sse import EventSourceResponse
 
 from ..schemas.document import (
     DocumentUploadRequest, DocumentUpdateRequest, DocumentQueryRequest,
     DocumentMetadata, DocumentDetail, DocumentListResponse,
     DocumentUploadResponse, DocumentDeleteResponse, DocumentStatsResponse
+)
+from ..schemas.upload import (
+    BatchUploadResponse, UploadTaskResponse, TaskCancelResponse,
+    FileRejection
 )
 from ..services.document_service import get_document_service
 
@@ -305,4 +310,211 @@ async def update_document(document_id: str, request: DocumentUpdateRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
+        )
+
+
+# ========== 批量上传端点 (Story 5.2) ==========
+
+@router.post("/batch-upload", response_model=BatchUploadResponse, status_code=status.HTTP_201_CREATED)
+async def batch_upload_documents(
+    files: List[UploadFile] = File(...),
+    user_id: str = Query(..., description="用户 ID"),
+    tags: Optional[str] = Form(None, description="标签（逗号分隔）")
+):
+    """
+    批量上传文档
+
+    限制:
+    - 最多 10 个文件
+    - 单文件最大 50MB
+    - 支持格式: PDF, DOCX, MD, HTML
+
+    Args:
+        files: 上传的文件列表
+        user_id: 用户 ID
+        tags: 标签（逗号分隔）
+
+    Returns:
+        BatchUploadResponse: 批量上传响应
+
+    Raises:
+        HTTPException: 上传失败
+    """
+    if len(files) > 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="批量上传最多支持 10 个文件"
+        )
+
+    # 解析标签
+    tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
+    try:
+        from src.services.upload import get_upload_manager
+        manager = get_upload_manager()
+        response = await manager.submit_batch(files, user_id, tags_list)
+
+        # 转换为 API 响应格式
+        return BatchUploadResponse(
+            batch_id=response.batch_id,
+            total_files=response.total_files,
+            accepted_files=response.accepted_files,
+            rejected_files=[
+                FileRejection(file_name=r["file_name"], reason=r["reason"])
+                for r in response.rejected_files
+            ],
+            task_ids=response.task_ids
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"批量上传失败: {str(e)}"
+        )
+
+
+@router.get("/upload/{task_id}/progress")
+async def get_upload_progress(task_id: str):
+    """
+    获取上传进度（SSE 流）
+
+    事件格式:
+    - event: progress
+    - data: {"task_id": "...", "status": "parsing", "progress": 30, ...}
+
+    Args:
+        task_id: 任务 ID
+
+    Returns:
+        EventSourceResponse: SSE 事件流
+
+    Raises:
+        HTTPException: 任务不存在
+    """
+    try:
+        from src.services.upload import get_upload_manager, TaskNotFoundException
+        manager = get_upload_manager()
+
+        async def event_generator():
+            """生成 SSE 事件"""
+            try:
+                async for progress in manager.get_progress_stream(task_id):
+                    yield {
+                        "event": "progress",
+                        "data": progress.model_dump_json()
+                    }
+            except Exception as e:
+                # 发送错误事件
+                yield {
+                    "event": "error",
+                    "data": f'{{"error": "{str(e)}"}}'
+                }
+
+        return EventSourceResponse(event_generator())
+
+    except TaskNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取进度失败: {str(e)}"
+        )
+
+
+@router.get("/upload/tasks", response_model=List[UploadTaskResponse])
+async def list_upload_tasks(
+    user_id: str = Query(..., description="用户 ID"),
+    status: Optional[str] = Query(None, description="状态筛选"),
+    limit: int = Query(50, ge=1, le=100, description="返回数量限制")
+):
+    """
+    获取上传任务列表
+
+    Args:
+        user_id: 用户 ID
+        status: 状态筛选（可选）
+        limit: 返回数量限制
+
+    Returns:
+        List[UploadTaskResponse]: 任务列表
+    """
+    try:
+        from src.services.upload import get_upload_manager
+        manager = get_upload_manager()
+        tasks = await manager.list_tasks(user_id, status, limit)
+
+        # 转换为 API 响应格式
+        return [
+            UploadTaskResponse(
+                task_id=task.task_id,
+                batch_id=task.batch_id,
+                file_name=task.file_info.file_name,
+                file_size=task.file_info.file_size,
+                status=task.status.value,
+                progress_percentage=task.progress_percentage,
+                document_id=task.document_id,
+                error_message=task.error_message,
+                created_at=task.created_at,
+                updated_at=task.updated_at,
+                completed_at=task.completed_at
+            )
+            for task in tasks
+        ]
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取任务列表失败: {str(e)}"
+        )
+
+
+@router.post("/upload/{task_id}/cancel", response_model=TaskCancelResponse)
+async def cancel_upload(task_id: str):
+    """
+    取消上传任务
+
+    Args:
+        task_id: 任务 ID
+
+    Returns:
+        TaskCancelResponse: 取消响应
+
+    Raises:
+        HTTPException: 任务不存在或已完成
+    """
+    try:
+        from src.services.upload import get_upload_manager, TaskNotFoundException
+        manager = get_upload_manager()
+        success = await manager.cancel_task(task_id)
+
+        if not success:
+            return TaskCancelResponse(
+                task_id=task_id,
+                message="任务已完成或失败，无法取消",
+                success=False
+            )
+
+        return TaskCancelResponse(
+            task_id=task_id,
+            message="任务已标记为取消",
+            success=True
+        )
+
+    except TaskNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"取消任务失败: {str(e)}"
         )

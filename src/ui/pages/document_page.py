@@ -233,6 +233,142 @@ def create_document_page() -> gr.Blocks:
         """同步包装"""
         return asyncio.run(get_stats_async())
 
+    # ========== 批量上传功能 (Story 5.2) ==========
+
+    def handle_file_selection(files) -> List[List]:
+        """处理文件选择，显示文件列表"""
+        if not files:
+            return []
+
+        file_list = []
+        for file_obj in files:
+            if file_obj is None:
+                continue
+
+            file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
+            file_name = file_path.split('/')[-1]
+
+            # 获取文件大小
+            try:
+                import os
+                file_size = os.path.getsize(file_path)
+                size_str = f"{file_size / 1024 / 1024:.2f} MB" if file_size > 1024*1024 else f"{file_size / 1024:.2f} KB"
+            except:
+                size_str = "未知"
+
+            file_list.append([file_name, size_str, "待上传"])
+
+        return file_list
+
+    async def batch_upload_async(
+        files,
+        tags: str
+    ) -> Tuple[str, List[List]]:
+        """批量上传文件"""
+        try:
+            if not files:
+                return "⚠ 请先选择文件", []
+
+            # 验证文件数量
+            if len(files) > 10:
+                return f"✗ 最多支持 10 个文件，当前选择了 {len(files)} 个", []
+
+            # 准备文件路径列表
+            file_paths = []
+            for file_obj in files:
+                if file_obj is None:
+                    continue
+                file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
+                file_paths.append(file_path)
+
+            if not file_paths:
+                return "✗ 没有有效的文件", []
+
+            # 调用批量上传 API
+            response = await client.batch_upload_documents(
+                file_paths=file_paths,
+                user_id="default",
+                tags=tags if tags and tags.strip() else None
+            )
+
+            if not response:
+                return "✗ 批量上传失败", []
+
+            # 显示结果
+            progress_text = f"📦 批次 ID: {response['batch_id']}\n\n"
+            progress_text += f"✓ 总文件数: {response['total_files']}\n"
+            progress_text += f"✓ 接受文件: {response['accepted_files']}\n"
+
+            if response['rejected_files']:
+                progress_text += f"\n⚠ 拒绝文件 ({len(response['rejected_files'])}):\n"
+                for rejected in response['rejected_files']:
+                    progress_text += f"  - {rejected['file_name']}: {rejected['reason']}\n"
+
+            progress_text += f"\n📋 任务 ID 列表:\n"
+            for task_id in response['task_ids']:
+                progress_text += f"  - {task_id}\n"
+
+            progress_text += "\n⏳ 文件正在后台处理中..."
+            progress_text += "\n💡 提示: 切换到\"上传历史\"标签查看详细进度"
+
+            # 刷新上传历史
+            history_data = await get_upload_history_async()
+
+            return progress_text, history_data
+
+        except Exception as e:
+            logger.error(f"Batch upload failed: {e}", exc_info=True)
+            return f"✗ 批量上传失败: {str(e)}", []
+
+    def batch_upload(files, tags: str) -> Tuple[str, List[List]]:
+        """同步包装"""
+        return asyncio.run(batch_upload_async(files, tags))
+
+    async def get_upload_history_async(
+        status_filter: str = "全部"
+    ) -> List[List]:
+        """获取上传历史"""
+        try:
+            status = None if status_filter == "全部" else status_filter
+
+            tasks = await client.list_upload_tasks(
+                user_id="default",
+                status=status,
+                limit=50
+            )
+
+            if not tasks:
+                return []
+
+            # 格式化为表格数据
+            history_rows = []
+            for task in tasks:
+                file_name = task.get('file_name', '')
+                status = task.get('status', '')
+                progress = task.get('progress_percentage', 0.0)
+                doc_id = task.get('document_id', '') or '-'
+                error = task.get('error_message', '') or '-'
+                created = task.get('created_at', '')[:19] if task.get('created_at') else ''
+
+                history_rows.append([
+                    file_name,
+                    status,
+                    round(progress, 1),
+                    doc_id,
+                    error[:50] + '...' if len(error) > 50 else error,
+                    created
+                ])
+
+            return history_rows
+
+        except Exception as e:
+            logger.error(f"Get upload history failed: {e}", exc_info=True)
+            return []
+
+    def get_upload_history(status_filter: str = "全部") -> List[List]:
+        """同步包装"""
+        return asyncio.run(get_upload_history_async(status_filter))
+
     # 创建页面布局
     with gr.Blocks(title="文档管理") as demo:
         gr.Markdown("# 📚 文档管理")
@@ -294,11 +430,11 @@ def create_document_page() -> gr.Blocks:
                         )
                         upload_btn = gr.Button("📤 上传", variant="primary")
 
-                    # Tab 2: 文件上传
+                    # Tab 2: 文件上传 (单个)
                     with gr.Tab("📤 文件上传"):
                         file_input = gr.File(
                             label="选择文件",
-                            file_types=[".pdf", ".docx", ".doc", ".md"],
+                            file_types=[".pdf", ".docx", ".doc", ".md", ".html", ".htm"],
                             file_count="single"
                         )
                         file_title = gr.Textbox(
@@ -317,11 +453,76 @@ def create_document_page() -> gr.Blocks:
                             - PDF (.pdf)
                             - Word (.docx, .doc)
                             - Markdown (.md)
+                            - HTML (.html, .htm)
 
                             **文件大小限制**: 最大 10MB
                             """
                         )
                         upload_file_btn = gr.Button("📤 上传文件", variant="primary")
+
+                    # Tab 3: 批量上传 (新增)
+                    with gr.Tab("📦 批量上传"):
+                        batch_file_input = gr.File(
+                            label="选择多个文件（最多10个）",
+                            file_types=[".pdf", ".docx", ".doc", ".md", ".html", ".htm"],
+                            file_count="multiple"
+                        )
+
+                        # 文件列表预览
+                        file_list_display = gr.Dataframe(
+                            headers=["文件名", "大小", "状态"],
+                            datatype=["str", "str", "str"],
+                            label="待上传文件",
+                            interactive=False,
+                            wrap=True
+                        )
+
+                        batch_tags = gr.Textbox(
+                            label="标签（逗号分隔，应用于所有文件）",
+                            placeholder="如: 技术文档, API",
+                            lines=1
+                        )
+
+                        with gr.Row():
+                            batch_upload_btn = gr.Button("🚀 开始批量上传", variant="primary", size="lg")
+                            clear_btn = gr.Button("🗑️ 清空列表", size="sm")
+
+                        # 上传进度显示
+                        progress_display = gr.Textbox(
+                            label="上传进度",
+                            value="",
+                            lines=8,
+                            interactive=False,
+                            max_lines=15
+                        )
+
+                        gr.Markdown(
+                            """
+                            **批量上传说明**:
+                            - 最多同时上传 10 个文件
+                            - 单个文件最大 50MB
+                            - 支持格式: PDF, Word, Markdown, HTML
+                            - 文件将自动解析并索引
+                            """
+                        )
+
+                    # Tab 4: 上传历史 (新增)
+                    with gr.Tab("📜 上传历史"):
+                        with gr.Row():
+                            history_status_filter = gr.Dropdown(
+                                choices=["全部", "pending", "validating", "parsing", "indexing", "completed", "failed", "cancelled"],
+                                value="全部",
+                                label="状态筛选"
+                            )
+                            history_refresh_btn = gr.Button("🔄 刷新历史", size="sm")
+
+                        history_table = gr.Dataframe(
+                            headers=["文件名", "状态", "进度%", "文档ID", "错误信息", "创建时间"],
+                            datatype=["str", "str", "number", "str", "str", "str"],
+                            label="上传历史记录",
+                            interactive=False,
+                            wrap=True
+                        )
 
                 gr.Markdown("---")
                 gr.Markdown("## 统计信息")
@@ -378,6 +579,45 @@ def create_document_page() -> gr.Blocks:
         stats_btn.click(
             fn=get_stats,
             outputs=[stats_display]
+        )
+
+        # ========== 批量上传事件绑定 ==========
+
+        # 文件选择变化时更新文件列表预览
+        batch_file_input.change(
+            fn=handle_file_selection,
+            inputs=[batch_file_input],
+            outputs=[file_list_display]
+        )
+
+        # 清空文件列表
+        clear_btn.click(
+            fn=lambda: (None, []),
+            outputs=[batch_file_input, file_list_display]
+        )
+
+        # 批量上传按钮
+        batch_upload_btn.click(
+            fn=batch_upload,
+            inputs=[batch_file_input, batch_tags],
+            outputs=[progress_display, history_table]
+        ).then(
+            fn=lambda: (None, [], ""),  # 清空表单
+            outputs=[batch_file_input, file_list_display, batch_tags]
+        )
+
+        # 刷新上传历史
+        history_refresh_btn.click(
+            fn=get_upload_history,
+            inputs=[history_status_filter],
+            outputs=[history_table]
+        )
+
+        # 状态筛选变化
+        history_status_filter.change(
+            fn=get_upload_history,
+            inputs=[history_status_filter],
+            outputs=[history_table]
         )
 
     return demo

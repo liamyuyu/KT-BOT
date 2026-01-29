@@ -549,6 +549,160 @@ class ChatAPIClient:
             logger.error(f"Get document stats failed: {e}")
             return None
 
+    # ============ 批量上传 API (Story 5.2) ============
+
+    async def batch_upload_documents(
+        self,
+        file_paths: List[str],
+        user_id: str = "default",
+        tags: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        批量上传文档
+
+        Args:
+            file_paths: 文件路径列表
+            user_id: 用户 ID
+            tags: 标签（逗号分隔）
+
+        Returns:
+            批量上传响应
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/batch-upload?user_id={user_id}"
+
+        try:
+            # 准备多个文件
+            files = []
+            for file_path in file_paths:
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+                    file_name = file_path.split('/')[-1]
+                    files.append(('files', (file_name, content, 'application/octet-stream')))
+
+            # 准备表单数据
+            data = {}
+            if tags:
+                data['tags'] = tags
+
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(url, files=files, data=data)
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Batch upload failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Batch upload failed: {e}")
+            return None
+
+    async def get_upload_progress_stream(
+        self,
+        task_id: str
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        获取上传进度流（SSE）
+
+        Args:
+            task_id: 任务 ID
+
+        Yields:
+            进度事件字典
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload/{task_id}/progress"
+
+        try:
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                async with client.stream("GET", url, headers={"Accept": "text/event-stream"}) as response:
+                    response.raise_for_status()
+
+                    event_type = None
+                    async for line in response.aiter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                        elif line.startswith("data:"):
+                            data_str = line[5:].strip()
+                            try:
+                                data = json.loads(data_str)
+                                yield {
+                                    "event": event_type or "progress",
+                                    "data": data
+                                }
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse progress data: {data_str[:100]}")
+
+        except Exception as e:
+            logger.error(f"Get upload progress failed: {e}")
+            yield {
+                "event": "error",
+                "data": {"message": str(e)}
+            }
+
+    async def list_upload_tasks(
+        self,
+        user_id: str = "default",
+        status: Optional[str] = None,
+        limit: int = 50
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        获取上传任务列表
+
+        Args:
+            user_id: 用户 ID
+            status: 状态筛选
+            limit: 返回数量限制
+
+        Returns:
+            任务列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload/tasks"
+
+        params = {
+            "user_id": user_id,
+            "limit": limit
+        }
+        if status:
+            params["status"] = status
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"List upload tasks failed: {e}")
+            return None
+
+    async def cancel_upload_task(
+        self,
+        task_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        取消上传任务
+
+        Args:
+            task_id: 任务 ID
+
+        Returns:
+            取消结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload/{task_id}/cancel"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Cancel upload task failed: {e}")
+            return None
+
     # ============ 搜索 API (Story 4.5) ============
 
     async def search_documents(
