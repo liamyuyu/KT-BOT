@@ -1170,6 +1170,93 @@ class ChatAPIClient:
             logger.error(f"Export conversation failed: {e}")
             return None
 
+    # ============ 监控指标 API (Story 5.5) ============
+
+    async def get_system_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取系统资源指标
+
+        Returns:
+            系统指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/system"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get system metrics failed: {e}")
+            return None
+
+    async def get_database_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取数据库连接池状态
+
+        Returns:
+            数据库指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/database"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get database metrics failed: {e}")
+            return None
+
+    async def get_api_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取 API 性能统计
+
+        Returns:
+            API 统计数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/api"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get API metrics failed: {e}")
+            return None
+
+    async def get_retrieval_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取检索性能指标
+
+        Returns:
+            检索指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/retrieval"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get retrieval metrics failed: {e}")
+            return None
+
+    async def get_all_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        一次性获取所有指标
+
+        Returns:
+            所有指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/all"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get all metrics failed: {e}")
+            return None
+
 
 # 全局客户端实例
 _client: Optional[ChatAPIClient] = None

@@ -75,6 +75,7 @@ class CitationInfo(BaseModel):
     引用信息模型
     用于标识检索结果的来源和高亮关键词
     """
+    # 现有字段（保持不变）
     source_id: str = Field(..., description="来源 ID（如 issue_key 或 document_id）")
     source_type: str = Field(..., description="来源类型（jira, confluence, local）")
     source_url: Optional[str] = Field(None, description="来源链接")
@@ -83,6 +84,16 @@ class CitationInfo(BaseModel):
     end_index: int = Field(..., description="在原文档中的结束位置")
     relevance_score: float = Field(..., description="相关性评分")
     highlights: List[Tuple[int, int]] = Field(default_factory=list, description="高亮位置列表（起始，结束）")
+
+    # 新增字段（全部 Optional，保持向后兼容）
+    quality_score: Optional[float] = Field(None, description="质量综合评分（0-1）")
+    quality_breakdown: Optional[Dict[str, float]] = Field(None, description="评分细分（relevance/freshness/coverage/popularity）")
+    usage_count: Optional[int] = Field(0, description="引用使用次数")
+    unique_queries: Optional[int] = Field(0, description="唯一查询数量")
+    last_used_at: Optional[datetime] = Field(None, description="最后使用时间")
+    document_title: Optional[str] = Field(None, description="文档标题")
+    document_created_at: Optional[datetime] = Field(None, description="文档创建时间")
+    snippet_preview: Optional[str] = Field(None, description="文本片段预览（200字符）")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -94,7 +105,20 @@ class CitationInfo(BaseModel):
                 "start_index": 0,
                 "end_index": 500,
                 "relevance_score": 0.85,
-                "highlights": [(10, 15), (50, 60)]
+                "highlights": [(10, 15), (50, 60)],
+                "quality_score": 0.87,
+                "quality_breakdown": {
+                    "relevance": 0.85,
+                    "freshness": 0.90,
+                    "coverage": 0.88,
+                    "popularity": 0.85
+                },
+                "usage_count": 156,
+                "unique_queries": 42,
+                "last_used_at": "2026-02-02T10:30:00",
+                "document_title": "User Authentication Story",
+                "document_created_at": "2026-01-15T09:00:00",
+                "snippet_preview": "这是一个关于用户认证的需求..."
             }
         }
     )

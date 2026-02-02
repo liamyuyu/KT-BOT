@@ -6,6 +6,7 @@ from .health import router as health_router
 from .models import router as models_router
 from .sync import router as sync_router
 from .conversations import router as conversations_router
+from .citations import router as citations_router
 
 __all__ = [
     "chat_router",
@@ -13,4 +14,5 @@ __all__ = [
     "models_router",
     "sync_router",
     "conversations_router",
+    "citations_router",
 ]

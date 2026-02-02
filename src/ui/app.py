@@ -17,6 +17,7 @@ from src.ui.pages.settings_page import create_settings_page
 from src.ui.pages.search_page import create_search_page
 from src.ui.pages.sync_page import create_sync_page
 from src.ui.pages.history_page import create_history_page
+from src.ui.pages.metrics_page import create_metrics_page
 from src.config import settings
 
 # 创建日志目录
@@ -47,11 +48,12 @@ def create_app() -> gr.Blocks:
     sync_page = create_sync_page()
     document_page = create_document_page()
     settings_page = create_settings_page()
+    metrics_page = create_metrics_page()
 
     # 使用 TabbedInterface 组合多个页面
     demo = gr.TabbedInterface(
-        [chat_page, search_page, history_page, sync_page, document_page, settings_page],
-        ["💬 对话", "🔍 搜索", "📜 历史", "🔄 同步", "📚 文档管理", "⚙️ 设置"],
+        [chat_page, search_page, history_page, sync_page, document_page, settings_page, metrics_page],
+        ["💬 对话", "🔍 搜索", "📜 历史", "🔄 同步", "📚 文档管理", "⚙️ 设置", "📊 监控"],
         title="KT-BOT - Enterprise Knowledge Bot"
     )
 
