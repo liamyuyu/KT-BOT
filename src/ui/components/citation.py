@@ -7,12 +7,13 @@ from typing import Dict, List, Tuple, Any, Optional
 from datetime import datetime
 
 
-def create_citation_badge(citation: Dict[str, Any]) -> str:
+def create_citation_badge(citation: Dict[str, Any], rank: Optional[int] = None) -> str:
     """
     创建引用标签 HTML
 
     Args:
         citation: 引用信息字典，包含 source_id、source_type、source_url、relevance_score
+        rank: 排名位置（可选），用于显示排名徽章
 
     Returns:
         str: HTML 字符串
@@ -21,6 +22,7 @@ def create_citation_badge(citation: Dict[str, Any]) -> str:
     source_type = citation.get("source_type", "").upper()
     source_url = citation.get("source_url")
     score = citation.get("relevance_score", 0)
+    quality_score = citation.get("quality_score")
 
     # 不同来源类型的颜色
     type_colors = {
@@ -31,10 +33,31 @@ def create_citation_badge(citation: Dict[str, Any]) -> str:
     }
     color = type_colors.get(source_type, "#6B778C")
 
+    # URL 验证
+    is_valid_url = False
+    url_warning = ""
+    if source_url:
+        is_valid_url = source_url.startswith(("http://", "https://"))
+        if not is_valid_url:
+            url_warning = "⚠️ 无效链接"
+
     html = f"""
     <div style="display: inline-flex; align-items: center; gap: 8px;
                 padding: 4px 12px; border-radius: 4px; margin: 4px 0;
                 background: {color}15; border: 1px solid {color}40;">
+    """
+
+    # 添加排名徽章
+    if rank is not None:
+        rank_color = "#FF5630" if rank == 1 else "#0052CC" if rank <= 3 else "#6B778C"
+        html += f"""
+        <span style="background: {rank_color}; color: white; padding: 2px 6px;
+                     border-radius: 10px; font-size: 0.75em; font-weight: 600;">
+            #{rank}
+        </span>
+        """
+
+    html += f"""
         <span style="font-weight: 600; color: {color}; font-size: 0.85em;">{source_type}</span>
         <span style="color: #172B4D; font-size: 0.9em;">{source_id}</span>
         <span style="color: #6B778C; font-size: 0.85em;">
@@ -42,13 +65,38 @@ def create_citation_badge(citation: Dict[str, Any]) -> str:
         </span>
     """
 
-    if source_url:
+    # 显示质量分数（如果有）
+    if quality_score is not None:
+        quality_color = "#00875A" if quality_score >= 0.8 else "#FF991F" if quality_score >= 0.6 else "#6B778C"
         html += f"""
-        <a href="{source_url}" target="_blank"
-           style="color: {color}; text-decoration: none; font-size: 0.85em;">
-            📎 查看原文
-        </a>
+        <span style="color: {quality_color}; font-size: 0.85em; font-weight: 600;">
+            质量: {quality_score:.0%}
+        </span>
         """
+
+    if source_url:
+        if is_valid_url:
+            # 有效链接 - 带 hover 效果和图标
+            html += f"""
+            <a href="{source_url}" target="_blank" rel="noopener noreferrer"
+               title="{source_url}"
+               style="padding: 6px 12px; background: {color}; color: white;
+                      text-decoration: none; font-size: 0.85em; border-radius: 4px;
+                      transition: all 0.2s; display: inline-block;"
+               onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.2)';"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+               onclick="showToast('正在打开原文...', 'info')">
+                📄 打开原文 ↗
+            </a>
+            """
+        else:
+            # 无效链接 - 显示警告
+            html += f"""
+            <span style="color: #DE350B; font-size: 0.85em; cursor: not-allowed;"
+                  title="链接格式无效: {source_url}">
+                {url_warning}
+            </span>
+            """
 
     html += "</div>"
     return html
@@ -249,8 +297,27 @@ def render_citation_stats(stats: Dict[str, Any]) -> str:
     last_used = stats.get("last_used_at")
     avg_relevance = stats.get("avg_relevance", 0)
 
+    # 确定热度等级和徽章
+    popularity_badge = ""
+    popularity_label = ""
+    if usage_count > 50:
+        popularity_badge = "🔥"
+        popularity_label = "热门"
+        badge_color = "#FF5630"
+    elif usage_count > 20:
+        popularity_badge = "⭐"
+        popularity_label = "常用"
+        badge_color = "#FF991F"
+    elif usage_count > 0:
+        popularity_badge = "📌"
+        popularity_label = "普通"
+        badge_color = "#6B778C"
+    else:
+        badge_color = "#6B778C"
+
     # 格式化最后使用时间
     last_used_display = "未知"
+    time_color = "#6B778C"
     if last_used:
         try:
             if isinstance(last_used, str):
@@ -261,25 +328,57 @@ def render_citation_stats(stats: Dict[str, Any]) -> str:
             delta = datetime.now(last_time.tzinfo or None) - last_time
             if delta.days == 0:
                 last_used_display = "今天"
+                time_color = "#00875A"  # 绿色 - 最近使用
             elif delta.days == 1:
                 last_used_display = "昨天"
+                time_color = "#00875A"
             elif delta.days < 7:
                 last_used_display = f"{delta.days}天前"
+                time_color = "#FF991F"  # 黄色 - 本周使用
             elif delta.days < 30:
                 last_used_display = f"{delta.days // 7}周前"
+                time_color = "#6B778C"  # 灰色 - 本月使用
             else:
                 last_used_display = f"{delta.days // 30}月前"
+                time_color = "#6B778C"
         except Exception:
             last_used_display = "未知"
 
     html = f"""
-    <div style="margin-top: 8px; padding: 8px; background: #F4F5F7;
-                border-radius: 4px; font-size: 0.85em; color: #6B778C;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div>📊 引用次数: <strong>{usage_count}</strong></div>
-            <div>🔍 查询数: <strong>{unique_queries}</strong></div>
-            <div>🕒 最后使用: <strong>{last_used_display}</strong></div>
-            <div>📈 平均相关度: <strong>{avg_relevance:.0%}</strong></div>
+    <div style="margin-top: 8px; padding: 12px; background: #F4F5F7;
+                border-radius: 4px; font-size: 0.85em; color: #6B778C;
+                border: 1px solid #DFE1E6;">
+    """
+
+    # 添加热度徽章
+    if popularity_label:
+        html += f"""
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <span style="font-size: 1.2em;">{popularity_badge}</span>
+            <span style="color: {badge_color}; font-weight: 600; font-size: 0.9em;">
+                {popularity_label}文档
+            </span>
+        </div>
+        """
+
+    html += f"""
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span>📊</span>
+                <span>引用次数: <strong style="color: #172B4D;">{usage_count}</strong></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span>🔍</span>
+                <span>查询数: <strong style="color: #172B4D;">{unique_queries}</strong></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span>🕒</span>
+                <span>最后使用: <strong style="color: {time_color};">{last_used_display}</strong></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span>📈</span>
+                <span>平均相关度: <strong style="color: #172B4D;">{avg_relevance:.0%}</strong></span>
+            </div>
         </div>
     </div>
     """
@@ -406,19 +505,38 @@ def create_enhanced_citation_card(
     """
 
     if source_url:
-        html += f"""
-            <a href="{source_url}" target="_blank"
+        # URL 验证
+        is_valid_url = source_url.startswith(("http://", "https://"))
+        if is_valid_url:
+            html += f"""
+            <a href="{source_url}" target="_blank" rel="noopener noreferrer"
+               title="{source_url}"
                style="padding: 6px 12px; background: {color}; color: white; text-decoration: none;
-                      border-radius: 4px; font-size: 0.85em; font-weight: 500;">
-                📄 打开原文
+                      border-radius: 4px; font-size: 0.85em; font-weight: 500;
+                      transition: all 0.2s; display: inline-block;"
+               onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.2)';"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';"
+               onclick="showToast('正在打开原文...', 'info')">
+                📄 打开原文 ↗
             </a>
             <button onclick="copyToClipboard('{source_url}')"
                     style="padding: 6px 12px; background: white; color: {color};
                            border: 1px solid {color}; border-radius: 4px;
-                           cursor: pointer; font-size: 0.85em; font-weight: 500;">
+                           cursor: pointer; font-size: 0.85em; font-weight: 500;
+                           transition: all 0.2s;"
+                    onmouseover="this.style.background='{color}'; this.style.color='white';"
+                    onmouseout="this.style.background='white'; this.style.color='{color}';">
                 📋 复制链接
             </button>
-        """
+            """
+        else:
+            html += f"""
+            <span style="padding: 6px 12px; background: #FFEBE6; color: #DE350B;
+                         border-radius: 4px; font-size: 0.85em; font-weight: 500;"
+                  title="链接格式无效: {source_url}">
+                ⚠️ 无效链接
+            </span>
+            """
 
     html += """
         </div>
@@ -430,6 +548,63 @@ def create_enhanced_citation_card(
     """
 
     return html
+
+
+def filter_citations_by_type(
+    citations: List[Dict],
+    source_types: Optional[List[str]] = None
+) -> List[Dict]:
+    """
+    Filter citations by source type
+
+    Args:
+        citations: List of citation dictionaries
+        source_types: List of source types to filter by (e.g., ["jira", "confluence", "local"])
+                     If None or empty, returns all citations
+
+    Returns:
+        List[Dict]: Filtered citations
+    """
+    if not source_types:
+        return citations
+
+    # Normalize source types to lowercase for comparison
+    normalized_types = [st.lower() for st in source_types]
+
+    return [
+        c for c in citations
+        if c.get("source_type", "").lower() in normalized_types
+    ]
+
+
+def sort_citations(
+    citations: List[Dict],
+    sort_by: str = "quality"
+) -> List[Dict]:
+    """
+    Sort citations by specified criteria
+
+    Args:
+        citations: List of citation dictionaries
+        sort_by: Sorting method - "quality", "relevance", "usage", or "freshness"
+
+    Returns:
+        List[Dict]: Sorted citations (descending order)
+    """
+    sort_keys = {
+        "quality": lambda c: c.get("quality_score", 0),
+        "relevance": lambda c: c.get("relevance_score", 0),
+        "usage": lambda c: c.get("usage_count", 0),
+        "freshness": lambda c: c.get("document_created_at", "")
+    }
+
+    sort_func = sort_keys.get(sort_by, sort_keys["quality"])
+
+    try:
+        return sorted(citations, key=sort_func, reverse=True)
+    except (TypeError, KeyError):
+        # Fallback: return original list if sorting fails
+        return citations
 
 
 def get_citation_scripts() -> str:
@@ -479,6 +654,24 @@ def get_citation_scripts() -> str:
 
             alert('链接已复制到剪贴板');
         }
+    }
+
+    function showToast(message, type='info') {
+        const colors = {
+            success: '#00875A',
+            warning: '#FF991F',
+            error: '#DE350B',
+            info: '#0052CC'
+        };
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `position: fixed; top: 20px; right: 20px;
+                               background: ${colors[type]}; color: white;
+                               padding: 12px 20px; border-radius: 4px;
+                               z-index: 9999; font-size: 0.9em;
+                               box-shadow: 0 2px 8px rgba(0,0,0,0.2);`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
     </script>
     """

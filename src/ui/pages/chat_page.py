@@ -157,6 +157,27 @@ class ChatPage:
 
                     gr.Markdown("---")
 
+                    # 引用控制 (Story 5.3)
+                    with gr.Accordion("🔖 引用控制", open=False):
+                        citation_filter_source = gr.CheckboxGroup(
+                            choices=["jira", "confluence", "local"],
+                            label="按来源类型过滤",
+                            info="选择要显示的引用来源（留空表示全部）"
+                        )
+                        citation_sort_by = gr.Dropdown(
+                            choices=["quality", "relevance", "usage", "freshness"],
+                            value="quality",
+                            label="引用排序方式",
+                            info="quality: 综合质量 | relevance: 相关度 | usage: 使用次数 | freshness: 时效性"
+                        )
+                        citation_show_stats = gr.Checkbox(
+                            value=True,
+                            label="显示使用统计",
+                            info="显示引用的使用次数、查询数等统计信息"
+                        )
+
+                    gr.Markdown("---")
+
                     # 生成参数
                     temperature = gr.Slider(
                         minimum=0.0,
@@ -248,7 +269,10 @@ class ChatPage:
                     filter_time_preset,
                     filter_doc_types,
                     filter_priority,
-                    filter_status
+                    filter_status,
+                    citation_filter_source,
+                    citation_sort_by,
+                    citation_show_stats
                 ],
                 outputs=[chatbot, session_id_state, status_box],
                 queue=True
@@ -279,7 +303,10 @@ class ChatPage:
                     filter_time_preset,
                     filter_doc_types,
                     filter_priority,
-                    filter_status
+                    filter_status,
+                    citation_filter_source,
+                    citation_sort_by,
+                    citation_show_stats
                 ],
                 outputs=[chatbot, session_id_state, status_box],
                 queue=True
@@ -361,7 +388,10 @@ class ChatPage:
         filter_time_preset: str = "不限",
         filter_doc_types: Optional[List[str]] = None,
         filter_priority: str = "不限",
-        filter_status: str = "不限"
+        filter_status: str = "不限",
+        citation_filter_source: Optional[List[str]] = None,
+        citation_sort_by: str = "quality",
+        citation_show_stats: bool = True
     ) -> Tuple[List[dict], str, str]:
         """
         处理机器人响应（流式）
@@ -384,6 +414,9 @@ class ChatPage:
             filter_doc_types: 文档类型过滤
             filter_priority: 优先级过滤
             filter_status: 状态过滤
+            citation_filter_source: 引用来源过滤
+            citation_sort_by: 引用排序方式
+            citation_show_stats: 是否显示引用统计
 
         Returns:
             (更新后的历史, 会话ID, 状态信息)
@@ -455,7 +488,10 @@ class ChatPage:
                     # 构建带格式的响应（实时更新）
                     formatted_response = self._format_response(
                         assistant_message,
-                        rag_contexts if rag_contexts else None
+                        rag_contexts if rag_contexts else None,
+                        citation_filter_source,
+                        citation_sort_by,
+                        citation_show_stats
                     )
                     history[-1]["content"] = formatted_response
 
@@ -466,7 +502,10 @@ class ChatPage:
                     # 生成结束 - 添加最终格式化
                     formatted_response = self._format_response(
                         assistant_message,
-                        rag_contexts if rag_contexts else None
+                        rag_contexts if rag_contexts else None,
+                        citation_filter_source,
+                        citation_sort_by,
+                        citation_show_stats
                     )
                     history[-1]["content"] = formatted_response
 
@@ -497,31 +536,64 @@ class ChatPage:
         yield history, session_id, status
 
     @staticmethod
-    def _format_response(content: str, contexts: Optional[List[dict]] = None) -> str:
+    def _format_response(
+        content: str,
+        contexts: Optional[List[dict]] = None,
+        citation_filter_source: Optional[List[str]] = None,
+        citation_sort_by: str = "quality",
+        citation_show_stats: bool = True
+    ) -> str:
         """
         格式化响应内容，添加 RAG 来源引用（支持引用溯源）
 
         Args:
             content: 原始响应内容
             contexts: RAG 检索结果（包含 citation 信息）
+            citation_filter_source: 引用来源过滤
+            citation_sort_by: 引用排序方式
+            citation_show_stats: 是否显示引用统计
 
         Returns:
             格式化后的 Markdown/HTML 内容
         """
+        from src.ui.components.citation import filter_citations_by_type, sort_citations, render_citation_stats
+
         formatted = content
 
         # 如果有 RAG 来源，添加引用部分
         if contexts and len(contexts) > 0:
-            formatted += "\n\n---\n\n"
-            formatted += "### 📚 参考来源\n\n"
+            # Apply filtering by source type
+            filtered_contexts = contexts
+            if citation_filter_source:
+                filtered_contexts = [
+                    ctx for ctx in contexts
+                    if ctx.get("citation", {}).get("source_type", "").lower() in [s.lower() for s in citation_filter_source]
+                ]
 
-            for i, ctx in enumerate(contexts, 1):
+            # Apply sorting
+            if filtered_contexts:
+                # Extract citations for sorting
+                citations_with_ctx = [
+                    (ctx.get("citation", {}), ctx) for ctx in filtered_contexts
+                ]
+                sorted_citations = sort_citations(
+                    [c[0] for c in citations_with_ctx],
+                    citation_sort_by
+                )
+                # Reconstruct contexts in sorted order
+                citation_to_ctx = {id(c[0]): c[1] for c in citations_with_ctx}
+                filtered_contexts = [citation_to_ctx.get(id(c), filtered_contexts[0]) for c in sorted_citations if id(c) in citation_to_ctx]
+
+            formatted += "\n\n---\n\n"
+            formatted += f"### 📚 参考来源 (排序: {citation_sort_by})\n\n"
+
+            for i, ctx in enumerate(filtered_contexts, 1):
                 # 获取引用信息（新增）
                 citation = ctx.get("citation", {})
 
                 if citation:
-                    # 使用引用溯源组件显示
-                    badge_html = create_citation_badge(citation)
+                    # 使用引用溯源组件显示（带排名）
+                    badge_html = create_citation_badge(citation, rank=i)
                     formatted += f"{badge_html}\n\n"
 
                     # 显示高亮内容预览
@@ -535,6 +607,17 @@ class ChatPage:
 
                     highlighted = highlight_content(preview, highlights)
                     formatted += f"<blockquote style='border-left: 3px solid #0052CC; padding-left: 12px; color: #42526E;'>{highlighted}</blockquote>\n\n"
+
+                    # 显示统计信息（如果启用且有数据）
+                    if citation_show_stats and citation.get("usage_count", 0) > 0:
+                        stats = {
+                            "usage_count": citation.get("usage_count", 0),
+                            "unique_queries": citation.get("unique_queries", 0),
+                            "last_used_at": citation.get("last_used_at"),
+                            "avg_relevance": citation.get("relevance_score", 0)
+                        }
+                        stats_html = render_citation_stats(stats)
+                        formatted += f"{stats_html}\n\n"
                 else:
                     # 回退到旧格式（向后兼容）
                     source = ctx.get("source", {})

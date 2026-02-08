@@ -88,6 +88,20 @@ class ChatRequest(BaseModel):
         description="快捷过滤：按元数据过滤（如 {'priority': 'High', 'status': 'Open'}）"
     )
 
+    # 引用控制参数 (Story 5.3)
+    citation_filter_source: Optional[List[str]] = Field(
+        None,
+        description="引用来源过滤（如 ['jira', 'confluence', 'local']）"
+    )
+    citation_sort_by: str = Field(
+        "quality",
+        description="引用排序方式：quality（综合质量）/ relevance（相关度）/ usage（使用次数）/ freshness（时效性）"
+    )
+    citation_show_stats: bool = Field(
+        True,
+        description="是否显示引用统计信息（使用次数、查询数等）"
+    )
+
 
 # ============ 响应模型 ============
 
