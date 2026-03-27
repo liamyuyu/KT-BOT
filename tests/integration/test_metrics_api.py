@@ -3,7 +3,7 @@
 """
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 
 from src.api.main import create_fastapi_app
@@ -20,7 +20,7 @@ async def app():
 @pytest.mark.asyncio
 async def test_get_system_metrics(app):
     """测试系统指标 API"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/metrics/system")
 
         # 验证响应状态
@@ -51,7 +51,7 @@ async def test_get_system_metrics(app):
 @pytest.mark.asyncio
 async def test_get_database_metrics(app):
     """测试数据库指标 API"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/metrics/database")
 
         # 验证响应状态
@@ -80,7 +80,7 @@ async def test_get_database_metrics(app):
 @pytest.mark.asyncio
 async def test_get_api_metrics(app):
     """测试 API 指标 API"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 先发送几个请求生成数据
         for _ in range(5):
             await client.get("/api/v1/health")
@@ -116,7 +116,7 @@ async def test_get_api_metrics(app):
 @pytest.mark.asyncio
 async def test_get_retrieval_metrics(app):
     """测试检索指标 API"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/metrics/retrieval")
 
         # 验证响应状态
@@ -139,7 +139,7 @@ async def test_get_retrieval_metrics(app):
 @pytest.mark.asyncio
 async def test_get_all_metrics(app):
     """测试获取所有指标"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/metrics/all")
 
         # 验证响应状态
@@ -168,7 +168,7 @@ async def test_get_all_metrics(app):
 @pytest.mark.asyncio
 async def test_metrics_api_error_handling(app):
     """测试 API 错误处理"""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 测试不存在的端点
         response = await client.get("/api/v1/metrics/nonexistent")
 
@@ -181,7 +181,7 @@ async def test_concurrent_metrics_requests(app):
     """测试并发请求指标"""
     import asyncio
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 并发请求所有指标端点
         tasks = [
             client.get("/api/v1/metrics/system"),
