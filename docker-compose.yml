@@ -16,12 +16,12 @@ services:
       - "7861:7861"  # Gradio
     environment:
       # Application
-      - ENVIRONMENT=production
-      - DEBUG=false
+      - ENVIRONMENT=development
+      - DEBUG=true
       - APP_VERSION=0.3.0
 
       # Database
-      - DATABASE_URL=postgresql://ktbot:ktbot_password@postgres:5432/ktbot
+      - DATABASE_URL=postgresql+asyncpg://ktbot:ktbot_password@postgres:5432/ktbot
       - DB_POOL_SIZE=10
       - DB_MAX_OVERFLOW=20
 
@@ -30,9 +30,9 @@ services:
       - REDIS_CACHE_TTL=1800
 
       # Ollama
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_DEFAULT_MODEL=qwen2.5:latest
-      - OLLAMA_EMBEDDING_MODEL=bge-large-zh:latest
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=qwen2.5:3b
+      - OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
 
       # RAG Configuration
       - CHROMA_HOST=localhost
