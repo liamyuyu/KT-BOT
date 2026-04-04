@@ -9,6 +9,7 @@ from .base import BaseParser, ParsedDocument
 from .pdf_parser import PDFParser
 from .docx_parser import DOCXParser
 from .markdown_parser import MarkdownParser
+from .html_parser import HTMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ class ParserFactory:
         self.parsers: List[BaseParser] = [
             PDFParser(),
             DOCXParser(),
-            MarkdownParser()
+            MarkdownParser(),
+            HTMLParser()
         ]
 
     def get_parser(self, file_path: str) -> BaseParser:
@@ -64,7 +66,7 @@ class ParserFactory:
         Returns:
             List[str]: 支持的扩展名列表
         """
-        return [".pdf", ".docx", ".doc", ".md"]
+        return [".pdf", ".docx", ".doc", ".md", ".html", ".htm"]
 
 
 # 全局单例

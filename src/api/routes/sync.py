@@ -326,6 +326,28 @@ async def cancel_sync(
 # ============================================================================
 
 @router.get(
+    "/status/running",
+    response_model=RunningTasksResponse,
+    summary="查询运行中的任务",
+    description="查询所有正在运行的同步任务",
+)
+async def get_running_tasks():
+    """查询运行中的任务"""
+    try:
+        scheduler = get_sync_scheduler()
+        tasks = await scheduler.get_running_tasks()
+
+        return RunningTasksResponse(
+            count=len(tasks),
+            tasks=[_task_to_response(task) for task in tasks]
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get running tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
     "/status/{task_id}",
     response_model=SyncTaskResponse,
     summary="查询任务状态",
@@ -348,28 +370,6 @@ async def get_task_status(
         raise
     except Exception as e:
         logger.error(f"Failed to get task status {task_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get(
-    "/status/running",
-    response_model=RunningTasksResponse,
-    summary="查询运行中的任务",
-    description="查询所有正在运行的同步任务",
-)
-async def get_running_tasks():
-    """查询运行中的任务"""
-    try:
-        scheduler = get_sync_scheduler()
-        tasks = await scheduler.get_running_tasks()
-
-        return RunningTasksResponse(
-            count=len(tasks),
-            tasks=[_task_to_response(task) for task in tasks]
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to get running tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

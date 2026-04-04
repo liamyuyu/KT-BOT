@@ -20,6 +20,16 @@ from .bm25 import BM25Retriever
 
 logger = logging.getLogger(__name__)
 
+# 延迟导入 Redis 相关模块（可选依赖）
+try:
+    from ...cache.redis_cache import RedisCitationCache, get_redis_cache
+    from ..citation_stats import CitationStatisticsCollector, get_stats_collector
+    from ..citation_scoring import calculate_citation_quality, batch_calculate_quality_scores
+    REDIS_MODULES_AVAILABLE = True
+except ImportError:
+    REDIS_MODULES_AVAILABLE = False
+    logger.warning("Redis modules not available, L2 cache and statistics disabled")
+
 
 class HybridRetriever(BaseRetriever):
     """
@@ -37,7 +47,10 @@ class HybridRetriever(BaseRetriever):
         hybrid_config: HybridConfig = None,
         enable_cache: bool = True,
         cache_size: int = 128,
-        retrieval_timeout: float = 10.0
+        retrieval_timeout: float = 10.0,
+        redis_url: str = "redis://localhost:6379/0",
+        enable_redis_cache: bool = True,
+        enable_quality_scoring: bool = True
     ):
         """
         初始化混合检索器
@@ -47,9 +60,12 @@ class HybridRetriever(BaseRetriever):
             bm25_retriever: BM25 检索器实例
             retrieval_config: 检索配置
             hybrid_config: 混合检索配置
-            enable_cache: 是否启用查询缓存
+            enable_cache: 是否启用查询缓存（L1 内存缓存）
             cache_size: 缓存大小（条目数）
             retrieval_timeout: 检索超时时间（秒）
+            redis_url: Redis 连接 URL
+            enable_redis_cache: 是否启用 Redis L2 缓存
+            enable_quality_scoring: 是否启用引用质量评分
         """
         super().__init__(retrieval_config)
         self.vector_retriever = vector_retriever
@@ -58,16 +74,26 @@ class HybridRetriever(BaseRetriever):
         self.enable_cache = enable_cache
         self.cache_size = cache_size
         self.retrieval_timeout = retrieval_timeout
+        self.redis_url = redis_url
+        self.enable_redis_cache = enable_redis_cache and REDIS_MODULES_AVAILABLE
+        self.enable_quality_scoring = enable_quality_scoring and REDIS_MODULES_AVAILABLE
 
-        # 缓存字典: query_hash -> (results, timestamp)
+        # L1 缓存字典: query_hash -> (results, timestamp)
         self._cache: Dict[str, Tuple[List[RetrievalResult], float]] = {}
         self._cache_ttl = 300.0  # 缓存有效期 5 分钟
+
+        # L2 Redis 缓存和统计收集器（延迟初始化）
+        self._redis_cache: Optional[RedisCitationCache] = None
+        self._stats_collector: Optional[CitationStatisticsCollector] = None
+        self._redis_initialized = False
 
         # 性能统计
         self._stats = {
             "total_queries": 0,
             "cache_hits": 0,
             "cache_misses": 0,
+            "redis_cache_hits": 0,
+            "redis_cache_misses": 0,
             "vector_time_total": 0.0,
             "bm25_time_total": 0.0,
             "fusion_time_total": 0.0,
@@ -83,8 +109,42 @@ class HybridRetriever(BaseRetriever):
 
         logger.info(
             f"HybridRetriever initialized with fusion_method={self.hybrid_config.fusion_method}, "
-            f"cache_enabled={enable_cache}, timeout={retrieval_timeout}s"
+            f"cache_enabled={enable_cache}, redis_cache_enabled={self.enable_redis_cache}, "
+            f"quality_scoring_enabled={self.enable_quality_scoring}, timeout={retrieval_timeout}s"
         )
+
+    async def _ensure_redis_initialized(self) -> bool:
+        """
+        确保 Redis 组件已初始化
+
+        Returns:
+            bool: 是否成功初始化
+        """
+        if self._redis_initialized:
+            return True
+
+        if not REDIS_MODULES_AVAILABLE:
+            return False
+
+        try:
+            # 初始化 Redis 缓存
+            if self.enable_redis_cache:
+                self._redis_cache = await get_redis_cache(self.redis_url)
+                if self._redis_cache:
+                    logger.info("Redis L2 cache initialized")
+
+            # 初始化统计收集器
+            if self.enable_quality_scoring:
+                self._stats_collector = await get_stats_collector(self.redis_url)
+                if self._stats_collector:
+                    logger.info("Citation statistics collector initialized")
+
+            self._redis_initialized = True
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to initialize Redis components: {e}")
+            self._redis_initialized = False
+            return False
 
     def _get_cache_key(self, query: str, top_k: int, filters=None, **kwargs) -> str:
         """生成查询缓存键"""
@@ -177,12 +237,43 @@ class HybridRetriever(BaseRetriever):
             vector_top_k = kwargs.get("vector_top_k", k * 2)
             bm25_top_k = kwargs.get("bm25_top_k", k * 2)
 
-            # 检查缓存（包含过滤条件在缓存键中）
+            # 初始化 Redis（如果需要）
+            await self._ensure_redis_initialized()
+
+            # 检查缓存（L1 内存缓存 -> L2 Redis 缓存）
             cache_key = self._get_cache_key(query, k, filters=filters, **kwargs)
+
+            # 先检查 L1 内存缓存
             cached_results = self._get_from_cache(cache_key)
             if cached_results is not None:
-                logger.info(f"Returned {len(cached_results)} cached results for query: {query[:50]}...")
+                logger.info(f"Returned {len(cached_results)} cached results from L1 cache for query: {query[:50]}...")
                 return cached_results
+
+            # 再检查 L2 Redis 缓存
+            if self._redis_cache:
+                try:
+                    redis_params = {
+                        "top_k": k,
+                        "filters": str(filters) if filters else None,
+                        **kwargs
+                    }
+                    redis_cached = await self._redis_cache.get_citations(query, redis_params)
+                    if redis_cached:
+                        self._stats["redis_cache_hits"] += 1
+                        # 将 Redis 缓存的结果转换为 RetrievalResult
+                        cached_results = [
+                            RetrievalResult(**item) if isinstance(item, dict) else item
+                            for item in redis_cached
+                        ]
+                        # 同时添加到 L1 缓存
+                        self._add_to_cache(cache_key, cached_results)
+                        logger.info(f"Returned {len(cached_results)} cached results from L2 Redis cache for query: {query[:50]}...")
+                        return cached_results
+                    else:
+                        self._stats["redis_cache_misses"] += 1
+                except Exception as e:
+                    logger.warning(f"Failed to get from Redis cache: {e}")
+                    # 优雅降级，继续执行检索
 
             # 并发执行两种检索（使用 asyncio.gather）
             logger.debug(
@@ -270,8 +361,39 @@ class HybridRetriever(BaseRetriever):
             if self.config.min_score:
                 final_results = [r for r in final_results if r.score >= self.config.min_score]
 
-            # 添加到缓存
+            # 增强引用信息（质量评分和统计信息）
+            if self.enable_quality_scoring and final_results:
+                try:
+                    final_results = await self._enrich_citations(final_results, query)
+                except Exception as e:
+                    logger.warning(f"Failed to enrich citations: {e}")
+                    # 优雅降级，继续返回结果
+
+            # 记录使用统计
+            if self._stats_collector and final_results:
+                try:
+                    await self._record_citation_usage(final_results, query)
+                except Exception as e:
+                    logger.warning(f"Failed to record citation usage: {e}")
+                    # 优雅降级，不影响返回结果
+
+            # 添加到 L1 内存缓存
             self._add_to_cache(cache_key, final_results)
+
+            # 添加到 L2 Redis 缓存
+            if self._redis_cache:
+                try:
+                    redis_params = {
+                        "top_k": k,
+                        "filters": str(filters) if filters else None,
+                        **kwargs
+                    }
+                    # 将 RetrievalResult 转换为字典以便序列化
+                    redis_data = [result.model_dump() for result in final_results]
+                    await self._redis_cache.set_citations(query, redis_data, redis_params)
+                except Exception as e:
+                    logger.warning(f"Failed to cache to Redis: {e}")
+                    # 优雅降级，不影响返回结果
 
             # 记录总耗时
             total_time = time.time() - start_time
@@ -527,12 +649,140 @@ class HybridRetriever(BaseRetriever):
                 metadata=result.metadata,
                 score=normalized_score,
                 distance=1.0 - normalized_score,
-                chunk_index=result.chunk_index
+                chunk_index=result.chunk_index,
+                citation=result.citation
             )
             normalized_results.append(normalized_result)
 
         logger.debug(f"Scores normalized: [{min_score:.4f}, {max_score:.4f}] -> [0.0, 1.0]")
         return normalized_results
+
+    async def _enrich_citations(
+        self,
+        results: List[RetrievalResult],
+        query: str
+    ) -> List[RetrievalResult]:
+        """
+        增强引用信息（添加质量评分和统计信息）
+
+        Args:
+            results: 检索结果列表
+            query: 查询文本
+
+        Returns:
+            增强后的检索结果列表
+        """
+        if not self._stats_collector or not REDIS_MODULES_AVAILABLE:
+            return results
+
+        try:
+            # 收集所有 source_id
+            source_ids = []
+            for result in results:
+                if result.citation:
+                    source_ids.append(result.citation.source_id)
+
+            # 批量获取统计信息
+            usage_stats_map = await self._stats_collector.get_batch_stats(source_ids)
+
+            # 获取全局统计（用于归一化）
+            global_stats = await self._stats_collector.get_global_stats()
+            max_usage = global_stats.get("max_usage_7d", 100)
+
+            # 增强每个结果的引用信息
+            enriched_results = []
+            for result in results:
+                if not result.citation:
+                    enriched_results.append(result)
+                    continue
+
+                citation = result.citation
+                source_id = citation.source_id
+
+                # 获取该来源的统计信息
+                usage_stats = usage_stats_map.get(source_id)
+
+                # 计算质量分数
+                if REDIS_MODULES_AVAILABLE:
+                    quality_score, breakdown = calculate_citation_quality(
+                        relevance_score=citation.relevance_score,
+                        query=query,
+                        highlights=citation.highlights,
+                        metadata=result.metadata,
+                        usage_stats=usage_stats
+                    )
+
+                    # 更新引用信息
+                    from ..models import CitationInfo
+                    enriched_citation = CitationInfo(
+                        source_id=citation.source_id,
+                        source_type=citation.source_type,
+                        source_url=citation.source_url,
+                        chunk_index=citation.chunk_index,
+                        start_index=citation.start_index,
+                        end_index=citation.end_index,
+                        relevance_score=citation.relevance_score,
+                        highlights=citation.highlights,
+                        quality_score=quality_score,
+                        quality_breakdown=breakdown,
+                        usage_count=usage_stats.get("total_references", 0) if usage_stats else 0,
+                        unique_queries=usage_stats.get("unique_queries", 0) if usage_stats else 0,
+                        last_used_at=usage_stats.get("last_referenced") if usage_stats else None,
+                        document_title=result.metadata.get("title"),
+                        document_created_at=result.metadata.get("created_at"),
+                        snippet_preview=result.content[:200] if result.content else None
+                    )
+
+                    # 创建新的 RetrievalResult
+                    enriched_result = RetrievalResult(
+                        chunk_id=result.chunk_id,
+                        parent_id=result.parent_id,
+                        content=result.content,
+                        metadata=result.metadata,
+                        score=result.score,
+                        distance=result.distance,
+                        chunk_index=result.chunk_index,
+                        citation=enriched_citation
+                    )
+                    enriched_results.append(enriched_result)
+                else:
+                    enriched_results.append(result)
+
+            logger.debug(f"Enriched {len(enriched_results)} citations with quality scores")
+            return enriched_results
+
+        except Exception as e:
+            logger.error(f"Failed to enrich citations: {e}")
+            return results
+
+    async def _record_citation_usage(
+        self,
+        results: List[RetrievalResult],
+        query: str
+    ) -> None:
+        """
+        记录引用使用统计
+
+        Args:
+            results: 检索结果列表
+            query: 查询文本
+        """
+        if not self._stats_collector:
+            return
+
+        try:
+            for result in results:
+                if result.citation:
+                    await self._stats_collector.record_citation_usage(
+                        source_id=result.citation.source_id,
+                        query=query,
+                        relevance_score=result.citation.relevance_score,
+                        metadata=result.metadata
+                    )
+
+            logger.debug(f"Recorded usage for {len(results)} citations")
+        except Exception as e:
+            logger.error(f"Failed to record citation usage: {e}")
 
     def get_statistics(self) -> Dict[str, any]:
         """

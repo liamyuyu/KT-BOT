@@ -9,9 +9,18 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.core.llm.manager import get_llm_manager
-from .routes import chat_router, health_router, models_router, sync_router
+from .routes import (
+    chat_router,
+    health_router,
+    models_router,
+    sync_router,
+    conversations_router,
+    citations_router
+)
 from .routes.documents import router as documents_router
 from .routes.search import router as search_router
+from .routes.metrics import router as metrics_router
+from .middleware.timing import TimingMiddleware, set_timing_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +123,15 @@ def create_fastapi_app() -> FastAPI:
         lifespan=lifespan
     )
 
+    # 性能监控中间件（在所有路由之前添加）
+    # The middleware uses class-level storage, so all instances share the same records
+    app.add_middleware(TimingMiddleware, max_records=1000)
+
+    # Create a reference instance for the metrics routes to access
+    # Since records are shared at class level, this instance will see all recorded requests
+    _timing_instance = TimingMiddleware(app, max_records=1000)
+    set_timing_middleware(_timing_instance)
+
     # CORS 中间件
     app.add_middleware(
         CORSMiddleware,
@@ -130,6 +148,9 @@ def create_fastapi_app() -> FastAPI:
     app.include_router(documents_router, prefix="/api/v1")
     app.include_router(sync_router, prefix="/api/v1")
     app.include_router(search_router, prefix="/api/v1")
+    app.include_router(conversations_router, prefix="/api/v1")
+    app.include_router(citations_router, prefix="/api/v1")
+    app.include_router(metrics_router, prefix="/api/v1/metrics", tags=["监控"])
 
     # 全局异常处理
     @app.exception_handler(Exception)

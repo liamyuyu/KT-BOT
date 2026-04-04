@@ -253,7 +253,7 @@
 - ❌ Story 3.6: 增量索引更新（8 点）- 已确认延期到 Sprint 4+
 
 ### Sprint 4 准备（预计开始：2026-02-14）
-根据 SPRINTS-latest.md 规划，Sprint 4 将包括：
+根据 SPRINTS.md 规划，Sprint 4 将包括：
 1. **Story 2.3**: 数据同步调度器（5 点）
 2. **Story 3.7**: 检索结果过滤（5 点）
 3. **Story 4.5**: 搜索功能（8 点）
@@ -281,8 +281,8 @@
 ### 文档更新
 - [x] 创建 Sprint 3 UI 集成总结文档
 - [x] 集成测试文件（test_sprint3_integration.py）
-- [ ] 更新 SPRINTS-latest.md（建议下一步）
-- [ ] 更新 CHANGELOG.md（建议下一步）
+- [x] 更新 SPRINTS.md（已完成）
+- [x] 更新 CHANGELOG.md（已完成）
 
 ---
 

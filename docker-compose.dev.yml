@@ -1,0 +1,87 @@
+# KT-BOT Docker Compose - Development Configuration
+# Use: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # Development application with hot reload
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kt-bot:dev
+    container_name: ktbot-app-dev
+    ports:
+      - "7860:7860"
+      - "7861:7861"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=postgresql://ktbot:ktbot_password@postgres:5432/ktbot
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: >
+      bash -c "pip install watchdog &&
+               watchmedo auto-restart --directory=./src --pattern='*.py' --recursive -- python src/main.py"
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    restart: unless-stopped
+    networks:
+      - ktbot-network
+
+  # Ollama - same as production
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ktbot-ollama-dev
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - ktbot-network
+
+  # PostgreSQL - same as production
+  postgres:
+    image: postgres:14-alpine
+    container_name: ktbot-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ktbot
+      - POSTGRES_USER=ktbot
+      - POSTGRES_PASSWORD=ktbot_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - ktbot-network
+
+  # Redis - same as production
+  redis:
+    image: redis:7-alpine
+    container_name: ktbot-redis-dev
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - ktbot-network
+
+volumes:
+  ollama_data:
+  postgres_data:
+
+networks:
+  ktbot-network:
+    driver: bridge

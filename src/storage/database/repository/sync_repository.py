@@ -6,7 +6,7 @@
 
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
-from sqlalchemy import select, func, and_, desc
+from sqlalchemy import select, func, and_, desc, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import SyncHistory, SyncConfig as SyncConfigModel
@@ -265,10 +265,10 @@ class SyncHistoryRepo:
         stmt = select(
             func.count(SyncHistory.id).label('total_syncs'),
             func.sum(
-                func.case((SyncHistory.status == SyncStatus.COMPLETED.value, 1), else_=0)
+                case((SyncHistory.status == SyncStatus.COMPLETED.value, 1), else_=0)
             ).label('successful_syncs'),
             func.sum(
-                func.case((SyncHistory.status == SyncStatus.FAILED.value, 1), else_=0)
+                case((SyncHistory.status == SyncStatus.FAILED.value, 1), else_=0)
             ).label('failed_syncs'),
             func.sum(SyncHistory.synced_items).label('total_items_synced'),
             func.avg(SyncHistory.duration_seconds).label('avg_duration'),

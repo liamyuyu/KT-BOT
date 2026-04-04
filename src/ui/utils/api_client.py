@@ -549,6 +549,160 @@ class ChatAPIClient:
             logger.error(f"Get document stats failed: {e}")
             return None
 
+    # ============ 批量上传 API (Story 5.2) ============
+
+    async def batch_upload_documents(
+        self,
+        file_paths: List[str],
+        user_id: str = "default",
+        tags: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        批量上传文档
+
+        Args:
+            file_paths: 文件路径列表
+            user_id: 用户 ID
+            tags: 标签（逗号分隔）
+
+        Returns:
+            批量上传响应
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/batch-upload?user_id={user_id}"
+
+        try:
+            # 准备多个文件
+            files = []
+            for file_path in file_paths:
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+                    file_name = file_path.split('/')[-1]
+                    files.append(('files', (file_name, content, 'application/octet-stream')))
+
+            # 准备表单数据
+            data = {}
+            if tags:
+                data['tags'] = tags
+
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(url, files=files, data=data)
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Batch upload failed: {e.response.status_code} - {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Batch upload failed: {e}")
+            return None
+
+    async def get_upload_progress_stream(
+        self,
+        task_id: str
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        获取上传进度流（SSE）
+
+        Args:
+            task_id: 任务 ID
+
+        Yields:
+            进度事件字典
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload/{task_id}/progress"
+
+        try:
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                async with client.stream("GET", url, headers={"Accept": "text/event-stream"}) as response:
+                    response.raise_for_status()
+
+                    event_type = None
+                    async for line in response.aiter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        if line.startswith("event:"):
+                            event_type = line[6:].strip()
+                        elif line.startswith("data:"):
+                            data_str = line[5:].strip()
+                            try:
+                                data = json.loads(data_str)
+                                yield {
+                                    "event": event_type or "progress",
+                                    "data": data
+                                }
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to parse progress data: {data_str[:100]}")
+
+        except Exception as e:
+            logger.error(f"Get upload progress failed: {e}")
+            yield {
+                "event": "error",
+                "data": {"message": str(e)}
+            }
+
+    async def list_upload_tasks(
+        self,
+        user_id: str = "default",
+        status: Optional[str] = None,
+        limit: int = 50
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        获取上传任务列表
+
+        Args:
+            user_id: 用户 ID
+            status: 状态筛选
+            limit: 返回数量限制
+
+        Returns:
+            任务列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload/tasks"
+
+        params = {
+            "user_id": user_id,
+            "limit": limit
+        }
+        if status:
+            params["status"] = status
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"List upload tasks failed: {e}")
+            return None
+
+    async def cancel_upload_task(
+        self,
+        task_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        取消上传任务
+
+        Args:
+            task_id: 任务 ID
+
+        Returns:
+            取消结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/documents/upload/{task_id}/cancel"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(url)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Cancel upload task failed: {e}")
+            return None
+
     # ============ 搜索 API (Story 4.5) ============
 
     async def search_documents(
@@ -825,6 +979,282 @@ class ChatAPIClient:
 
         except Exception as e:
             logger.error(f"Get sync statistics failed: {e}")
+            return None
+
+    # ============ 对话历史 API (Story 5.1) ============
+
+    async def list_conversations(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取对话列表
+
+        Args:
+            user_id: 用户 ID
+            page: 页码
+            page_size: 每页数量
+
+        Returns:
+            对话列表
+        """
+        url = f"{self.base_url}{self.api_prefix}/conversations"
+
+        params = {
+            "user_id": user_id,
+            "page": page,
+            "page_size": page_size
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"List conversations failed: {e}")
+            return None
+
+    async def search_conversations(
+        self,
+        user_id: str,
+        keyword: str,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Optional[Dict[str, Any]]:
+        """
+        搜索对话
+
+        Args:
+            user_id: 用户 ID
+            keyword: 搜索关键词
+            page: 页码
+            page_size: 每页数量
+
+        Returns:
+            搜索结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/conversations/search"
+
+        params = {
+            "user_id": user_id,
+            "keyword": keyword,
+            "page": page,
+            "page_size": page_size
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Search conversations failed: {e}")
+            return None
+
+    async def get_conversation(
+        self,
+        conversation_id: str,
+        include_messages: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取对话详情
+
+        Args:
+            conversation_id: 对话 ID
+            include_messages: 是否包含消息
+
+        Returns:
+            对话详情
+        """
+        url = f"{self.base_url}{self.api_prefix}/conversations/{conversation_id}"
+
+        params = {"include_messages": include_messages}
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get conversation failed: {e}")
+            return None
+
+    async def delete_conversation(
+        self,
+        conversation_id: str,
+        soft_delete: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        删除对话
+
+        Args:
+            conversation_id: 对话 ID
+            soft_delete: 是否软删除
+
+        Returns:
+            删除结果
+        """
+        url = f"{self.base_url}{self.api_prefix}/conversations/{conversation_id}"
+
+        params = {"soft_delete": soft_delete}
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.delete(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Delete conversation failed: {e}")
+            return None
+
+    async def get_conversation_stats(
+        self,
+        user_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取对话统计
+
+        Args:
+            user_id: 用户 ID
+
+        Returns:
+            统计信息
+        """
+        url = f"{self.base_url}{self.api_prefix}/conversations/stats"
+
+        params = {"user_id": user_id}
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
+
+        except Exception as e:
+            logger.error(f"Get conversation stats failed: {e}")
+            return None
+
+    async def export_conversation(
+        self,
+        conversation_id: str,
+        format: str = "markdown"
+    ) -> Optional[bytes]:
+        """
+        导出对话
+
+        Args:
+            conversation_id: 对话 ID
+            format: 导出格式 (markdown/json/pdf)
+
+        Returns:
+            文件内容（字节）
+        """
+        url = f"{self.base_url}{self.api_prefix}/conversations/{conversation_id}/export"
+
+        params = {"format": format}
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                return response.content
+
+        except Exception as e:
+            logger.error(f"Export conversation failed: {e}")
+            return None
+
+    # ============ 监控指标 API (Story 5.5) ============
+
+    async def get_system_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取系统资源指标
+
+        Returns:
+            系统指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/system"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get system metrics failed: {e}")
+            return None
+
+    async def get_database_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取数据库连接池状态
+
+        Returns:
+            数据库指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/database"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get database metrics failed: {e}")
+            return None
+
+    async def get_api_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取 API 性能统计
+
+        Returns:
+            API 统计数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/api"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get API metrics failed: {e}")
+            return None
+
+    async def get_retrieval_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        获取检索性能指标
+
+        Returns:
+            检索指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/retrieval"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get retrieval metrics failed: {e}")
+            return None
+
+    async def get_all_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        一次性获取所有指标
+
+        Returns:
+            所有指标数据
+        """
+        url = f"{self.base_url}{self.api_prefix}/metrics/all"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json().get("data")
+        except Exception as e:
+            logger.error(f"Get all metrics failed: {e}")
             return None
 
 
