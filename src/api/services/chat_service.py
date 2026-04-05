@@ -274,14 +274,14 @@ class ChatService:
                 temperature=request.temperature,
                 max_tokens=request.max_tokens
             ):
-                full_response += chunk.content
-                token_count = chunk.eval_count or token_count
+                full_response += chunk
+                token_count += len(chunk.split())  # Approximate token count
 
                 # 发送 token 事件
                 yield {
                     "event": "token",
                     "data": {
-                        "content": chunk.content
+                        "content": chunk
                     }
                 }
 

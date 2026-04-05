@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from src.config import settings
 from src.core.llm.manager import get_llm_manager
@@ -151,6 +152,34 @@ def create_fastapi_app() -> FastAPI:
     app.include_router(conversations_router, prefix="/api/v1")
     app.include_router(citations_router, prefix="/api/v1")
     app.include_router(metrics_router, prefix="/api/v1/metrics", tags=["监控"])
+
+    # 验证错误处理
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request, exc: RequestValidationError):
+        logger.error(f"=== Validation Error ===")
+        logger.error(f"URL: {request.url}")
+        logger.error(f"Method: {request.method}")
+
+        try:
+            body = await request.body()
+            logger.error(f"Request Body: {body.decode('utf-8')}")
+        except:
+            pass
+
+        logger.error(f"Validation Errors:")
+        for error in exc.errors():
+            logger.error(f"  - Field: {error['loc']}")
+            logger.error(f"    Error: {error['msg']}")
+            logger.error(f"    Type: {error['type']}")
+
+        logger.error(f"========================")
+
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": exc.errors()
+            }
+        )
 
     # 全局异常处理
     @app.exception_handler(Exception)

@@ -217,10 +217,18 @@ class OllamaLLM(BaseLLM):
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if line:
-                        data = json.loads(line)
-                        message = data.get("message", {})
-                        if "content" in message:
-                            yield message["content"]
+                        try:
+                            data = json.loads(line)
+                            logger.info(f"Ollama response data: {data}")
+                            message = data.get("message", {})
+                            logger.info(f"Message type: {type(message)}, message: {message}")
+                            if "content" in message:
+                                content = message["content"]
+                                logger.info(f"Yielding chunk: type={type(content)}, value={repr(content[:50] if len(content) > 50 else content)}")
+                                yield content
+                        except Exception as e:
+                            logger.error(f"Error processing line: {line}, error: {e}", exc_info=True)
+                            raise
         except httpx.HTTPError as e:
             logger.error(f"Ollama chat stream error: {e}")
             raise
