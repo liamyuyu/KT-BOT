@@ -1,8 +1,8 @@
 """
 对话相关的 Pydantic 数据模型
 """
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 
 from src.core.rag.models import FilterConfig
@@ -20,11 +20,43 @@ class ChatMessage(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="元数据")
 
 
+class MessageContent(BaseModel):
+    """消息内容块（支持 Anthropic 格式）"""
+    type: str = Field(..., description="内容类型（text）")
+    text: str = Field(..., description="文本内容")
+
+
 class ChatRequest(BaseModel):
     """对话请求模型"""
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
-    message: str = Field(..., min_length=1, description="用户消息")
+    message: Union[str, List[MessageContent]] = Field(..., description="用户消息（支持字符串或 Anthropic 消息格式）")
+
+    @field_validator('message')
+    @classmethod
+    def normalize_message(cls, v):
+        """标准化消息格式为字符串"""
+        if isinstance(v, str):
+            if not v.strip():
+                raise ValueError("Message cannot be empty")
+            return v.strip()
+        elif isinstance(v, list):
+            # 支持 Anthropic Messages API 格式: [{"type": "text", "text": "..."}]
+            text_parts = []
+            for item in v:
+                if isinstance(item, dict):
+                    if item.get("type") == "text" and "text" in item:
+                        text_parts.append(item["text"])
+                elif isinstance(item, MessageContent):
+                    if item.type == "text":
+                        text_parts.append(item.text)
+
+            if not text_parts:
+                raise ValueError("Message content cannot be empty")
+
+            return " ".join(text_parts)
+        else:
+            raise ValueError("Message must be a string or list of content blocks")
     session_id: Optional[str] = Field(None, description="会话 ID（首次为 None）")
     model_name: Optional[str] = Field(None, description="指定模型（默认使用配置）")
     enable_rag: bool = Field(True, description="是否启用 RAG 检索")
