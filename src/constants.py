@@ -8,12 +8,14 @@ APP_NAME = "KT-BOT"
 APP_VERSION = "0.1.0"
 
 # ========== Models ==========
-DEFAULT_LLM_MODEL = "qwen2.5:7b"
-DEFAULT_EMBEDDING_MODEL = "bge-large-zh"
+DEFAULT_LLM_MODEL = "qwen2.5:latest"
+DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"
 
 # ========== Supported Models ==========
 SUPPORTED_LLM_MODELS = [
+    "qwen2.5:3b",
     "qwen2.5:7b",
+    "qwen2.5:latest",
     "qwen2.5:14b",
     "llama3.1:8b",
     "mistral:7b",

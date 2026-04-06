@@ -87,6 +87,27 @@ async def lifespan(app: FastAPI):
         if settings.environment == "production":
             raise
 
+    # 初始化 BM25 索引（如果存在）
+    logger.info("Loading BM25 index...")
+    try:
+        from src.core.rag.retriever.bm25 import get_bm25_retriever
+        from pathlib import Path
+
+        bm25_retriever = get_bm25_retriever()
+        bm25_cache_file = Path(bm25_retriever.bm25_config.cache_dir) / "bm25_index.pkl"
+
+        if bm25_cache_file.exists():
+            bm25_retriever.load_index()
+            stats = bm25_retriever.get_statistics()
+            logger.info(f"✅ BM25 index loaded: {stats.get('document_count', 0)} documents")
+        else:
+            logger.warning(
+                "⚠️  BM25 index not found. Run 'python scripts/init_bm25.py' to initialize it. "
+                "Hybrid retrieval will fall back to vector-only mode."
+            )
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to load BM25 index: {e}. Continuing without BM25.")
+
     yield
 
     # 关闭时

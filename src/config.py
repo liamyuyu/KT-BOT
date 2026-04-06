@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         description="Ollama 服务地址"
     )
     ollama_model: str = Field(
-        default="qwen2.5:7b",
+        default="qwen2.5:latest",
         description="默认对话模型"
     )
     ollama_embedding_model: str = Field(

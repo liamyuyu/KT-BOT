@@ -391,9 +391,22 @@ class ChatService:
                     self.hybrid_retriever.hybrid_config.vector_weight = vector_weight
                     self.hybrid_retriever.hybrid_config.bm25_weight = bm25_weight
 
-                    results = await self.hybrid_retriever.retrieve(
-                        query, top_k=retrieve_k, filters=filter_config
-                    )
+                    try:
+                        results = await self.hybrid_retriever.retrieve(
+                            query, top_k=retrieve_k, filters=filter_config
+                        )
+                    except Exception as e:
+                        # If hybrid retrieval fails (e.g., BM25 not initialized), fall back to vector
+                        if "BM25 model not initialized" in str(e):
+                            logger.warning(
+                                "BM25 not initialized, falling back to vector retriever. "
+                                "Run 'python scripts/init_bm25.py' to enable hybrid search."
+                            )
+                            results = await self.vector_retriever.retrieve(
+                                query, top_k=retrieve_k, filters=filter_config
+                            )
+                        else:
+                            raise
 
             else:
                 logger.warning(f"Unknown retrieval_method: {retrieval_method}, using vector")

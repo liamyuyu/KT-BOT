@@ -326,7 +326,8 @@ class ChromaDBClient:
     )
     def search(
         self,
-        query: str,
+        query: Optional[str] = None,
+        query_embeddings: Optional[List[List[float]]] = None,
         n_results: int = 10,
         where: Optional[Dict[str, Any]] = None,
         where_document: Optional[Dict[str, Any]] = None,
@@ -336,7 +337,8 @@ class ChromaDBClient:
         向量相似度搜索
 
         Args:
-            query: 查询文本
+            query: 查询文本（与 query_embeddings 二选一）
+            query_embeddings: 查询向量（与 query 二选一）
             n_results: 返回结果数量
             where: 元数据过滤条件（如 {"source": "confluence"}）
             where_document: 文档内容过滤条件
@@ -348,14 +350,26 @@ class ChromaDBClient:
         try:
             collection = self.get_or_create_collection(collection_name)
 
+            # 构建查询参数
+            query_params = {
+                "n_results": n_results,
+                "where": where,
+                "where_document": where_document,
+                "include": ["documents", "metadatas", "distances"]
+            }
+
+            # 根据输入类型选择查询方式
+            if query_embeddings is not None:
+                query_params["query_embeddings"] = query_embeddings
+                query_text = None
+            elif query is not None:
+                query_params["query_texts"] = [query]
+                query_text = query
+            else:
+                raise ValueError("Either query or query_embeddings must be provided")
+
             # 执行查询
-            results: QueryResult = collection.query(
-                query_texts=[query],
-                n_results=n_results,
-                where=where,
-                where_document=where_document,
-                include=["documents", "metadatas", "distances"]
-            )
+            results: QueryResult = collection.query(**query_params)
 
             # 解析结果
             search_results = []
@@ -376,7 +390,7 @@ class ChromaDBClient:
             return SearchResults(
                 results=search_results,
                 total=len(search_results),
-                query=query,
+                query=query if query else "[embedding query]",
                 limit=n_results
             )
 
